@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Clipboard, Clock3, DoorOpen, Pause, Play, RotateCcw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Clipboard, Pause, Play, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { catalog } from '../engine/catalog.ts'
@@ -74,7 +74,7 @@ export function RunPage() {
   const stageIndex = run?.stageIndex
   const index = run?.index
   useEffect(() => { window.scrollTo(0, 0) }, [stageIndex, index])
-  if (!run) return <section className="panel"><h1>Run unavailable</h1><p>Saved runs are stored on the browser where you played them.</p><Link to="/">Assessment library</Link></section>
+  if (!run) return <section className="panel"><h1>Run unavailable</h1><p>Saved runs are stored on the browser where you played them.</p><Link to="/">Assessments</Link></section>
   if (run.phase === 'done') return <Navigate to={'/results/' + run.id} replace />
   const stage = run.stages[run.stageIndex], info = gameInfo[stage.game], activeTime = elapsed(run, time)
   if (run.phase === 'between') {
@@ -94,24 +94,26 @@ export function RunPage() {
   const answer = run.mode === 'practice' ? run.answers.find(a => a.index === run.index) : undefined
   return <div className="run">
     <header className="run-header">
-      <div><p className="kicker">{run.mode === 'full' ? 'Stage ' + (run.stageIndex + 1) + ' of ' + run.stages.length : run.mode === 'practice' ? 'Practice' : 'Timed run'}</p>
+      <div className="run-title">
         <h1>{info.title}</h1>
-        <p className="run-progress">{stage.kind === 'quant' ? (run.index + 1) + ' of ' + stage.count :
-          stage.game === 'grill-master' ? 'Live grill' : 'Round ' + ((run.zap?.index ?? 0) + 1) + (stage.rounds ? ' of ' + stage.rounds : '')}</p>
+        {run.mode === 'full' && <span className="run-mode">Stage {run.stageIndex + 1} of {run.stages.length}</span>}
+        {run.mode === 'practice' && <span className="run-mode">Practice</span>}
       </div>
       <div className="run-controls">
+        <span className="run-progress">{stage.kind === 'quant' ? (run.index + 1) + ' of ' + stage.count :
+          stage.game === 'grill-master' ? 'Live grill' : 'Round ' + ((run.zap?.index ?? 0) + 1) + (stage.rounds ? ' of ' + stage.rounds : '')}</span>
         <div className={'clock ' + (remaining < 15 ? 'clock-urgent' : '')} role="timer" aria-label="Section time remaining">
-          <Clock3 size={17} />{Number.isFinite(remaining) ? timeLabel(remaining) : 'Untimed'}
+          {Number.isFinite(remaining) ? timeLabel(remaining) : 'Untimed'}
         </div>
         {Number.isFinite(itemRemaining) && <div className="item-clock" role="timer" aria-label="Question time remaining">Item {timeLabel(itemRemaining)}</div>}
         {run.mode === 'practice' && <button className="icon-button" aria-label={run.pausedAt === null ? 'Pause practice' : 'Resume practice'}
-          onClick={() => act({ type: 'pause' })}>{run.pausedAt === null ? <Pause size={18} /> : <Play size={18} />}</button>}
-        <button className="icon-button" aria-label="Exit run" onClick={() => setExit(!exit)}><DoorOpen size={18} /></button>
+          onClick={() => act({ type: 'pause' })}>{run.pausedAt === null ? <Pause size={17} /> : <Play size={17} />}</button>}
+        <button className="quiet run-exit" aria-label="Exit run" aria-expanded={exit} onClick={() => setExit(!exit)}>Exit</button>
       </div>
       <div className="run-meter"><i style={{ width: Math.max(0, Math.min(1, progress)) * 100 + '%' }} /></div>
     </header>
-    {exit && <div className="notice" role="status">Your progress is saved. {run.mode === 'practice' ? 'Pause before leaving if you want to freeze the clock.' : 'The timed clock continues after you leave.'}
-      <div className="actions"><button className="secondary" onClick={() => setExit(false)}>Stay</button><Link className="primary" to="/">Exit to library</Link></div></div>}
+    {exit && <div className="notice" role="status">Progress saved.{run.mode !== 'practice' && ' The timer keeps running.'}
+      <div className="actions"><button className="secondary" onClick={() => setExit(false)}>Stay</button><Link className="primary" to="/">Exit to assessments</Link></div></div>}
     {run.pausedAt !== null ? <div className="panel"><h2>Practice paused</h2><button className="primary" onClick={() => act({ type: 'pause' })}>Resume practice</button></div> : <>
       {q && run.draft && <QuantPlay key={run.stageIndex + '/' + run.index} q={q} draft={run.draft} answer={answer} practice={run.mode === 'practice'} act={act} />}
       {round && run.zap && <ZapPlay round={round} state={run.zap} elapsed={activeTime} practice={run.mode === 'practice'} act={zapAct} />}
@@ -198,7 +200,8 @@ export function ResultsPage() {
   const link = new URL(import.meta.env.BASE_URL, window.location.origin)
   link.hash = '/challenge?' + shareQuery(run)
   return <>
-    <div className="page-heading"><p className="kicker">Results</p><h1>{run.title} complete</h1>
+    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
+    <div className="page-heading"><h1>{run.title} complete</h1>
       <p>{run.mode === 'full' ? 'Full mock' : run.mode === 'timed' ? 'Timed run' : 'Practice'} · {new Date(run.updatedAt).toLocaleString()}</p>
       <div className="actions"><button className="primary" disabled={starting} onClick={() => start({ mode: run.mode, title: run.title, stages: run.stages })}>
         <RotateCcw size={17} /> Retake with new seed</button>

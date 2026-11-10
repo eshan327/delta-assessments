@@ -86,7 +86,7 @@ async function playArcade(page: Page, c: Challenge, index: number) {
       break
     }
     case 'code-compare':
-      await expect(page.getByRole('heading', { name: 'Find the exact match' })).toBeVisible()
+      await expect(page.getByLabel('Reference ' + round.reference, { exact: true })).toBeVisible()
       await page.keyboard.press(String(round.answer + 1))
       break
     case 'digit':
@@ -97,7 +97,7 @@ async function playArcade(page: Page, c: Challenge, index: number) {
       await page.getByRole('button', { name: 'Submit', exact: true }).click()
       break
     case 'the-switch':
-      await expect(page.getByRole('heading', { name: 'Answer the highlighted rule' })).toBeVisible()
+      await expect(page.locator('.active-stimulus')).toBeVisible()
       await page.keyboard.press(round.answer === 0 ? 'ArrowLeft' : 'ArrowRight')
       break
     case 'shapeshift':
@@ -115,18 +115,36 @@ test('portal order, independent arcade routes, reload and browser back', async (
   await page.goto('./')
   await expect(page).toHaveTitle('Delta Assessments')
   await expect(page.locator('.game-row strong')).toHaveText(['Beat The Odds', 'NumberLogic', 'Likelihood-list', 'Intervals', 'Orderbooks', 'Zap-N', 'Classic 80-in-8'])
+  await expect(page.getByRole('heading', { name: 'Bonus' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Classic 80-in-8', exact: true })).toBeVisible()
   await page.screenshot({ path: info.outputPath('portal.png'), fullPage: true })
-  await page.getByRole('link', { name: /Zap-N Nine interactive/ }).click()
+  for (const slug of ['beat-the-odds', 'numberlogic', 'likelihood-list', 'intervals', 'orderbooks', 'classic-80-in-8']) {
+    await page.locator('a[href="#/game/' + slug + '"]').click()
+    await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Scoring', exact: true })).toBeVisible()
+    await expect(page.getByRole('navigation')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Start tutorial' })).toBeVisible()
+    await page.getByRole('link', { name: 'Assessments', exact: true }).click()
+  }
+  await page.getByRole('link', { name: 'Zap-N', exact: true }).click()
   await expect(page.locator('.game-row strong')).toHaveText(zapIds.map(id => zapName[id]))
   for (const id of zapIds) {
     await page.locator('a[href="#/game/' + id + '"]').click()
     await expect(page.getByRole('heading', { level: 1, name: zapName[id] })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
     await page.goBack()
     await expect(page.getByRole('heading', { level: 1, name: 'Zap-N' })).toBeVisible()
   }
   await page.goto('./#/game/orderbooks')
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'Orderbooks' })).toBeVisible()
+  await expect(page.getByText('Make a profit and finish with zero inventory.')).toBeVisible()
+  await page.screenshot({ path: info.outputPath('orderbooks-rules.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Start tutorial' }).click()
+  await expect(page.getByRole('region', { name: 'Question' })).toBeVisible()
+  await page.getByRole('button', { name: 'Skip', exact: true }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await result(page, 'Orderbooks tutorial')
   expect(errors).toEqual([])
 })
 
@@ -203,6 +221,7 @@ test('Orderbooks solves a trade, resets positions, and completes 20 boards in ei
   const q = plannedQuestions(c, 0)[0] as Extract<Question, { kind: 'book' }>
   await start(page, c)
   await expect(page.getByText('1 of 20')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Question' }).getByRole('heading')).toHaveCount(0)
   await page.getByRole('button', { name: /^Buy for/ }).first().click()
   await expect(page.locator('.has-position')).toHaveCount(1)
   await page.getByRole('button', { name: 'Reset', exact: true }).click()
@@ -252,7 +271,7 @@ test('full mock resumes an active board, persists results, and replays the share
   }
   await result(page, 'Full assessment')
   await expect(page.locator('.result-stage')).toHaveCount(c.stages.length)
-  await page.getByRole('navigation').getByRole('link', { name: 'History' }).click()
+  await page.getByRole('link', { name: 'History', exact: true }).click()
   await expect(page.getByText('Full assessment', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Review', exact: true }).click()
   await result(page, 'Full assessment')
@@ -262,6 +281,25 @@ test('full mock resumes an active board, persists results, and replays the share
 
 test.describe('mobile and reduced motion', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, reducedMotion: 'reduce' })
+
+  test('opens the mobile index and rules without horizontal overflow', async ({ page }, info) => {
+    await page.goto('./')
+    await expect(page.locator('.game-row')).toHaveCount(7)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await page.screenshot({ path: info.outputPath('mobile-portal.png'), fullPage: true })
+    await page.getByRole('link', { name: 'Intervals', exact: true }).tap()
+    await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
+    await expect(page.getByText('40 ÷ 50 = 80%')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await page.screenshot({ path: info.outputPath('mobile-rules.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Start timed' }).tap()
+    await page.getByRole('button', { name: 'Exit run' }).tap()
+    await page.getByRole('link', { name: 'Exit to assessments' }).tap()
+    await expect(page.getByRole('link', { name: 'Resume run' })).toBeVisible()
+    const title = (await page.locator('.folio-cover h1').boundingBox())!
+    const controls = (await page.locator('.folio-cover .actions').boundingBox())!
+    expect(controls.y).toBeGreaterThanOrEqual(title.y + title.height)
+  })
 
   test('plays a touch orderbook without horizontal overflow and retains focus', async ({ page }, info) => {
     const c = create([quant('orderbooks', 1)], 'mobile-orderbooks', 'practice')
@@ -285,7 +323,8 @@ test('settings persist, backup imports are validated, and history can be cleared
   await start(page, create([quant('intervals', 1)], 'settings-e2e'))
   await page.getByRole('button', { name: 'Skip', exact: true }).click()
   await result(page)
-  await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click()
+  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Utilities' }).getByRole('link', { name: 'Settings', exact: true }).click()
   await page.getByRole('combobox', { name: 'Theme', exact: true }).selectOption('dark')
   await expect(page.getByRole('status')).toHaveText('Preferences saved.')
   await page.reload()
@@ -297,6 +336,7 @@ test('settings persist, backup imports are validated, and history can be cleared
   await expect(page.getByText('This file does not contain valid Delta Assessments data.')).toBeVisible()
   await page.getByRole('button', { name: 'Clear history' }).click()
   await page.getByRole('button', { name: 'Clear saved attempts' }).click()
-  await page.getByRole('navigation').getByRole('link', { name: 'History' }).click()
+  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Utilities' }).getByRole('link', { name: 'History', exact: true }).click()
   await expect(page.getByText('No saved runs yet.', { exact: false })).toBeVisible()
 })

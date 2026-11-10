@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowLeft, ArrowRight, Clock3, Play, Settings2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { catalog } from '../engine/catalog.ts'
@@ -7,7 +7,9 @@ import { begin, decodeChallenge, defaultStage, freshChallenge, mainGames, stageS
 import type { Challenge, Game, Mode, Stage } from '../engine/session.ts'
 import { saveAttempt, useData } from '../engine/storage.ts'
 import { zapIds } from '../engine/zap.ts'
+import GameMark, { DeltaMark } from './GameMark.tsx'
 import { gameInfo, timeLabel } from './registry.ts'
+import RuleExample from './RuleExample.tsx'
 
 export function useStart() {
   const nav = useNavigate()
@@ -33,45 +35,42 @@ export function useStart() {
   return { start, starting, error }
 }
 
-export function GameList({ games }: { games: (Game | 'zap-n')[] }) {
-  const settings = useData(s => s.settings)
-  return <div className="game-list">{games.map(game => {
-    const info = gameInfo[game], Icon = info.icon
-    const stage = game === 'zap-n' ? null : defaultStage(game, 'timed', settings)
-    const meta = !stage ? '9 mini-games' : stage.kind === 'quant' ? stage.count + ' questions · ' + timeLabel(stage.seconds) : timeLabel(stage.seconds) + ' default'
-    return <Link key={game} className="game-row" to={game === 'zap-n' ? '/zap-n' : '/game/' + game}>
-      <span className={'game-icon ' + info.color}><Icon size={23} strokeWidth={1.8} /></span>
-      <span className="game-copy"><strong>{info.title}</strong><span>{info.description}</span></span>
-      <span className="game-meta">{meta}</span><ArrowRight className="game-arrow" size={19} />
+function stageMeta(stage: Stage) {
+  return stage.kind === 'quant' ? stage.count + ' questions · ' + timeLabel(stage.seconds) : timeLabel(stage.seconds)
+}
+
+const assessmentGames = [...mainGames, 'classic-80-in-8'] as (Game | 'zap-n')[]
+
+function GameList({ games }: { games: readonly (Game | 'zap-n')[] }) {
+  return <ul className="game-list">{games.map(game => <li key={game}>
+    <Link className="game-row" to={game === 'zap-n' ? '/zap-n' : '/game/' + game}>
+      <span className="game-symbol"><GameMark game={game} /></span>
+      <strong>{gameInfo[game].title}</strong>
+      <ArrowRight className="game-arrow" size={21} strokeWidth={1.6} aria-hidden="true" />
     </Link>
-  })}</div>
+  </li>)}</ul>
 }
 
 export function Home() {
   const resume = useData(s => s.attempts.find(a => a.phase !== 'done'))
-  return <>
-    <section className="home-hero">
-      <div><h1>Delta Assessments</h1><p>Practice quantitative reasoning and cognitive games, then put them together in a timed assessment.</p>
-        <div className="actions"><Link className="primary" to="/full">Set up full mock <ArrowRight size={18} /></Link>
-          {resume && <Link className="secondary" to={'/play/' + resume.id}>Resume run</Link>}</div>
+  return <div className="assessment-index folio">
+    <header className="folio-cover">
+      <DeltaMark />
+      <h1>Delta Assessments</h1>
+      <div className="actions">
+        <Link className="secondary index-action" to="/full">Full mock <ArrowUpRight size={18} /></Link>
+        {resume && <Link className="quiet" to={'/play/' + resume.id}>Resume run</Link>}
       </div>
-      <svg className="hero-art" viewBox="0 0 360 210" aria-hidden="true">
-        <defs><pattern id="hero-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#adced0" opacity=".35" /></pattern>
-          <linearGradient id="delta-fill" x2="1" y2="1"><stop stopColor="#99d4d3" /><stop offset="1" stopColor="#479096" /></linearGradient></defs>
-        <rect x="8" y="7" width="344" height="196" rx="20" fill="url(#hero-grid)" />
-        <path d="M180 33 269 181H91Z" fill="url(#delta-fill)" opacity=".56" />
-        <path d="M180 33 269 181H91Z M180 79 225 155H135Z" fill="none" stroke="#39797e" strokeWidth="1.7" />
-        <path d="M42 165 85 124 123 145 166 108 215 120 259 73 320 49" fill="none" stroke="#1d686f" strokeWidth="2.4" />
-        {[ [42, 165], [85, 124], [123, 145], [166, 108], [215, 120], [259, 73], [320, 49] ].map(([x, y]) =>
-          <circle key={x} cx={x} cy={y} r="3.6" fill="#f5fbfa" stroke="#1d686f" strokeWidth="2" />)}
-      </svg>
+    </header>
+    <section className="folio-index" aria-label="Assessments">
+      <GameList games={assessmentGames} />
     </section>
-    <section className="home-section" aria-labelledby="library">
-      <div className="section-heading"><div><h2 id="library">Assessment library</h2><p>Choose a section to practice or start a timed run.</p></div><span>6 sections</span></div>
-      <GameList games={mainGames as (Game | 'zap-n')[]} />
-    </section>
-    <section className="home-section"><div className="section-heading"><div><h2>Bonus trainer</h2><p>A separate mental-math sprint.</p></div></div><GameList games={['classic-80-in-8']} /></section>
-  </>
+    <nav className="folio-utilities" aria-label="Utilities">
+      <Link to="/history">History</Link>
+      <Link to="/settings">Settings</Link>
+      <Link to="/about">About</Link>
+    </nav>
+  </div>
 }
 
 export function StageFields({ stage, onChange, full = false }: { stage: Stage; onChange: (s: Stage) => void; full?: boolean }) {
@@ -111,7 +110,7 @@ export function StageFields({ stage, onChange, full = false }: { stage: Stage; o
 export function GameIntro({ game }: { game: Game }) {
   const settings = useData(s => s.settings)
   const played = useData(s => s.attempts.some(a => a.stages.some(stage => stage.game === game)))
-  const info = gameInfo[game], Icon = info.icon
+  const info = gameInfo[game]
   const timed = defaultStage(game, 'timed', settings)
   const { start, starting, error } = useStart()
   const [custom, setCustom] = useState(false), [mode, setMode] = useState<Mode>('timed')
@@ -122,28 +121,48 @@ export function GameIntro({ game }: { game: Game }) {
   const demo: Stage = timed.kind === 'quant' ? { ...timed, count: 1, difficulty: 1, seconds: 0, itemSeconds: 0, families: [] } :
     { ...timed, difficulty: 1, rounds: timed.game === 'grill-master' ? null : 1, seconds: timed.game === 'grill-master' ? 16 : 120 }
   const customValid = stageSchema.safeParse(stage).success && (stage.kind !== 'zap' || stage.seconds >= 120)
+  const formatPoints = (n: number) => n === 0 ? '0' : (n < 0 ? '−' : '+') + Math.abs(n)
+  const scoring = info.scoring ?? (timed.kind === 'quant' && [
+    formatPoints(timed.scoring.correct) + ' correct', formatPoints(timed.scoring.wrong) + ' incorrect',
+    formatPoints(timed.scoring.skip) + ' skipped',
+  ].join(' · '))
   return <>
-    <Link className="back-link" to={timed.kind === 'zap' ? '/zap-n' : '/'}><ArrowLeft size={17} />{timed.kind === 'zap' ? 'Zap-N' : 'Assessment library'}</Link>
-    <section className="intro panel">
-      <span className={'game-icon large ' + info.color}><Icon size={31} strokeWidth={1.7} /></span>
-      <div><p className="kicker">{info.type}</p><h1>{info.title}</h1><p className="intro-lead">{info.description}</p></div>
-      <div className="intro-meta"><Clock3 size={16} /> {timeLabel(timed.seconds)} timed{timed.kind === 'quant' ? ' · ' + timed.count + ' questions' : ''}</div>
-    </section>
-    <section className="panel instructions">
-      <h2>How to play</h2><p>{info.how}</p><h3>Scoring</h3><p>{info.scoring}</p>
-      <div className="actions">
-        {settings.tutorial && !played && <button className="secondary" disabled={starting} onClick={() => launch('practice', demo, info.title + ' tutorial')}>Play tutorial</button>}
-        <button className="secondary" disabled={starting} onClick={() => launch('practice', defaultStage(game, 'practice', settings))}>Start practice</button>
-        <button className="primary" disabled={starting} onClick={() => launch('timed', timed)}><Play size={16} /> Start timed</button>
-        <button className="quiet" aria-expanded={custom} onClick={() => setCustom(!custom)}><Settings2 size={17} /> Custom</button>
-        {(played || !settings.tutorial) && <button className="quiet" disabled={starting} onClick={() => launch('practice', demo, info.title + ' tutorial')}>Tutorial</button>}
+    <section className="rule-sheet" aria-label={info.title + ' instructions'}>
+      <Link className="back-link" to={timed.kind === 'zap' ? '/zap-n' : '/'}><ArrowLeft size={17} />
+        {timed.kind === 'zap' ? 'Zap-N' : 'Assessments'}
+      </Link>
+      <header className="rule-heading">
+        <h1>{info.title}</h1>
+        <div className="rule-meta">
+          <span>{stageMeta(timed)}</span>
+          {timed.kind === 'quant' && timed.itemSeconds > 0 && <span>{timeLabel(timed.itemSeconds)} per question</span>}
+        </div>
+      </header>
+      <div className="rule-body">
+        <div className="rule-copy">
+          <h2>Rules</h2>
+          <p className="rule-objective">{info.objective}</p>
+          <ol role="list">{info.rules.map(rule => <li key={rule}>{rule}</li>)}</ol>
+          <h2>Scoring</h2>
+          <p>{scoring}</p>
+        </div>
+        <RuleExample game={game} />
+      </div>
+      <div className="rule-actions">
+        <div className="actions">
+          <button className={settings.tutorial && !played ? 'secondary index-action' : 'secondary'} disabled={starting}
+            onClick={() => launch('practice', demo, info.title + ' tutorial')}>Start tutorial</button>
+          <button className="secondary" disabled={starting} onClick={() => launch('practice', defaultStage(game, 'practice', settings))}>Practice</button>
+          <button className="secondary" aria-expanded={custom} aria-controls={custom ? 'custom-setup' : undefined} onClick={() => setCustom(!custom)}>Custom</button>
+        </div>
+        <button className="primary" disabled={starting} onClick={() => launch('timed', timed)}>Start timed <ArrowRight size={17} /></button>
       </div>
       {supplied && <button className="secondary" disabled={starting} onClick={() => start(supplied, supplied)}>Play shared seed</button>}
-      {query.has('seed') && !supplied && <p className="field-note">The shared preset is invalid or uses a different generator version.</p>}
+      {query.has('seed') && !supplied && <p className="field-note">This challenge link is invalid or uses a different generator version.</p>}
       {error && <p role="alert">{error}</p>}
-      {starting && <p role="status">Preparing the seeded run…</p>}
+      {starting && <p role="status">Starting…</p>}
     </section>
-    {custom && <section className="panel">
+    {custom && <section className="panel custom-setup" id="custom-setup">
       <h2>Custom setup</h2>
       <label className="inline-label">Mode<select value={mode} onChange={e => {
         const m = e.target.value as Mode
@@ -157,12 +176,14 @@ export function GameIntro({ game }: { game: Game }) {
 }
 
 export function ZapHub() {
-  return <>
-    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessment library</Link>
-    <div className="page-heading"><h1>Zap-N</h1><p>Nine games for attention, working memory, decision-making, and planning.</p>
-      <Link className="primary" to="/full?arcade=1">Set up a Zap-N battery <ArrowRight size={17} /></Link></div>
-    <GameList games={[...zapIds]} />
-  </>
+  return <div className="assessment-index arcade-index">
+    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
+    <header className="index-heading">
+      <h1>Zap-N</h1>
+      <Link className="secondary index-action" to="/full?arcade=1">Zap-N battery <ArrowUpRight size={19} /></Link>
+    </header>
+    <GameList games={zapIds} />
+  </div>
 }
 
 export function FullSetup() {
@@ -178,15 +199,15 @@ export function FullSetup() {
   const resume = useData(s => s.attempts.find(a => a.phase !== 'done' && (onlyZap ? a.title === 'Zap-N battery' : a.mode === 'full')))
   const title = onlyZap ? 'Zap-N battery' : 'Full assessment'
   return <>
-    <Link className="back-link" to={onlyZap ? '/zap-n' : '/'}><ArrowLeft size={17} /> {onlyZap ? 'Zap-N' : 'Assessment library'}</Link>
-    <div className="page-heading"><h1>{title}</h1><p>{onlyZap ? 'Choose one or more games and play them back to back.' : 'Run the six sections in portal order with a configurable Zap-N battery.'}</p></div>
+    <Link className="back-link" to={onlyZap ? '/zap-n' : '/'}><ArrowLeft size={17} /> {onlyZap ? 'Zap-N' : 'Assessments'}</Link>
+    <div className="page-heading"><h1>{title}</h1></div>
     <section className="panel">
-      <h2>Choose your Zap-N games</h2><div className="family-fields">{zapIds.map(game => <label className="checkbox" key={game}>
+      <h2>Zap-N games</h2><div className="family-fields">{zapIds.map(game => <label className="checkbox" key={game}>
         <input type="checkbox" checked={selected.includes(game)} onChange={e => setSelected(e.target.checked ? [...selected, game] : selected.filter(g => g !== game))} />{gameInfo[game].title}</label>)}</div>
       {!onlyZap && <label className="checkbox bonus-check"><input type="checkbox" checked={includeBonus} onChange={e => setBonus(e.target.checked)} /> Add Classic 80-in-8 after the six sections</label>}
     </section>
     <section className="panel">
-      <h2>Run order</h2><p className="muted">Expand a stage to edit its preset. The next stage starts when you choose Continue.</p>
+      <h2>Run order</h2>
       <ol className="stage-list">{stages.map((stage, index) => <li key={stage.game}><details><summary><span>{index + 1} · {gameInfo[stage.game].title}</span>
         <small>{timeLabel(stage.seconds)}{stage.kind === 'quant' ? ' · ' + stage.count + ' questions' : ''}</small></summary>
         <StageFields stage={stage} full onChange={s => setEdited({ ...edited, [s.game]: s })} /></details></li>)}</ol>
@@ -194,7 +215,7 @@ export function FullSetup() {
         Start {onlyZap ? 'battery' : 'full mock'} <ArrowRight size={17} /></button>
         {resume && <Link className="secondary" to={'/play/' + resume.id}>Resume saved run</Link>}</div>
       {!selected.length && <p className="field-note">Select at least one Zap-N game.</p>}
-      {error && <p role="alert">{error}</p>}{starting && <p role="status">Preparing the seeded run…</p>}
+      {error && <p role="alert">{error}</p>}{starting && <p role="status">Starting…</p>}
     </section>
   </>
 }
@@ -203,13 +224,13 @@ export function ChallengePage() {
   const [query] = useSearchParams()
   const challenge = decodeChallenge(query)
   const { start, starting, error } = useStart()
-  return <section className="panel"><p className="kicker">Shared challenge</p><h1>{challenge?.title ?? 'Challenge unavailable'}</h1>
-    {challenge ? <><p className="muted">Play the same generated content with the shared seed and preset.</p>
+  return <section className="panel challenge-sheet"><h1>{challenge?.title ?? 'Challenge unavailable'}</h1>
+    {challenge ? <>
       <p className="seed">{challenge.seed}</p>
-      <button className="primary" disabled={starting} onClick={() => start(challenge, challenge)}>Start challenge <ArrowDownRight size={17} /></button>
-      {starting && <p role="status">Preparing the seeded run…</p>}
+      <button className="primary" disabled={starting} onClick={() => start(challenge, challenge)}>Start challenge <ArrowRight size={17} /></button>
+      {starting && <p role="status">Starting…</p>}
     </> : <p>The link is incomplete or uses an unavailable generator version.</p>}
     {error && <p role="alert">{error}</p>}
-    <Link className="back-link" to="/">Assessment library</Link>
+    <Link className="back-link" to="/">Assessments</Link>
   </section>
 }

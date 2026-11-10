@@ -7,19 +7,36 @@ import type { Answer, AttemptAction } from '../engine/session.ts'
 import VisualBoard from './Visual.tsx'
 
 function Goods({ type }: { type: number }) {
-  return <svg viewBox="0 0 72 64" aria-hidden="true">
-    {type === 0 && <><path d="M9 41 20 22 50 16 64 32 54 47 17 53Z" fill="#688493" />
-      <path d="M9 41 20 22 50 16 64 32 27 39Z" fill="#b6c8ce" /><path d="M9 41 27 39 64 32 54 47 17 53Z" fill="#879da7" />
-      <path d="m23 26 24-5 9 9-30 6" fill="none" stroke="#dce7ea" strokeWidth="2" /></>}
-    {type === 1 && <><path d="M17 18Q12 32 17 49Q36 62 55 49Q61 32 55 18Z" fill="#294148" /><ellipse cx="36" cy="18" rx="19" ry="8" fill="#638089" />
-      <ellipse cx="36" cy="18" rx="14" ry="5" fill="#3c565d" /><path d="M15 29Q37 40 57 29M15 44Q37 55 57 44" fill="none" stroke="#789197" strokeWidth="4" />
-      <path d="M24 25V47" stroke="#47656e" strokeWidth="4" /></>}
-    {type === 2 && <><ellipse cx="36" cy="38" rx="23" ry="15" fill="#8e3c22" /><ellipse cx="36" cy="31" rx="23" ry="15" fill="#bd5e37" />
-      <ellipse cx="36" cy="28" rx="23" ry="14" fill="#dd8759" /><ellipse cx="36" cy="28" rx="12" ry="6" fill="#f2d2b9" />
-      <ellipse cx="36" cy="26" rx="18" ry="10" fill="none" stroke="#f2a676" strokeWidth="2" /><path d="M18 38Q37 50 56 38" fill="none" stroke="#f2a676" strokeWidth="2" /></>}
-    {type === 3 && <><path d="M23 13 33 16 50 12 45 25Q63 39 53 52Q35 61 17 51Q11 40 27 24Z" fill="#ca9a55" />
-      <path d="M28 26Q18 40 25 51Q36 54 49 49Q53 42 43 26Z" fill="#dfb778" />
-      <path d="M26 25Q36 29 46 24" fill="none" stroke="#86653e" strokeWidth="3" /><path d="m28 42 4-3m4 7 6-4m-6 8 4-2" stroke="#9c784c" strokeWidth="2" /></>}
+  return <svg viewBox="0 0 96 80" aria-hidden="true">
+    {type === 0 && <g stroke="#5d6e6b" strokeWidth="1.1" strokeLinejoin="round">
+      <path d="M11 51 25 28 64 19 83 42 72 59 23 68Z" fill="#839391" />
+      <path d="M11 51 25 28 64 19 83 42 32 53Z" fill="#c5cfca" />
+      <path d="M32 53 83 42 72 59 23 68Z" fill="#9aa9a5" />
+      <path d="m27 33 34-8 12 14-36 8" fill="none" stroke="#eef1ea" strokeWidth="1.6" />
+    </g>}
+    {type === 1 && <g stroke="#263433" strokeWidth="1.3">
+      <path d="M23 19H73L70 64C69 75 27 75 26 64Z" fill="#3b4847" />
+      <path d="M31 22 33 66M61 23 59 67" stroke="#65716e" opacity=".7" />
+      <ellipse cx="48" cy="19" rx="25" ry="9" fill="#75817c" />
+      <ellipse cx="48" cy="19" rx="20" ry="6" fill="#4b5a57" />
+      <ellipse cx="58" cy="18" rx="3.5" ry="1.8" fill="#a3aaa2" />
+      <path d="M24 33C27 43 70 43 72 33M25 51C28 61 69 61 71 51M26 63C29 73 68 73 70 63"
+        fill="none" stroke="#89928a" strokeWidth="2.6" />
+    </g>}
+    {type === 2 && <g stroke="#8b4a32" strokeWidth="1.15">
+      <path d="M12 40C12 16 84 16 84 40v11C84 75 12 75 12 51Z" fill="#ad6548" />
+      <path d="M12 40a36 19 0 1 0 72 0 36 19 0 1 0-72 0m17 0a19 9 0 1 1 38 0 19 9 0 1 1-38 0"
+        fill="#d98e63" fillRule="evenodd" />
+      <ellipse cx="48" cy="40" rx="29" ry="15" fill="none" stroke="#f4bb91" />
+      <ellipse cx="48" cy="40" rx="24" ry="12" fill="none" stroke="#a55b3d" />
+      <path d="M13 47C18 68 77 68 83 47M16 55C25 73 71 73 80 55" fill="none" stroke="#e6a477" />
+      <path d="M22 52 29 55l-1 12-7-4zM70 52l6-4v12l-6 4z" fill="#b0aaa0" />
+    </g>}
+    {type === 3 && <g stroke="#8c653f" strokeWidth="1.15" strokeLinejoin="round">
+      <path d="M26 12 40 16 48 11 56 16 70 12 59 30Q77 47 77 59Q78 71 49 71Q19 71 19 59Q19 47 37 30Z" fill="#c89f66" />
+      <path d="M39 31Q24 48 26 59Q28 66 46 68Q66 68 71 61Q70 48 57 30Z" fill="#e0bc82" stroke="none" />
+      <path d="M36 29q12 5 24 0m-16 2-5 11m14-12 7 9m-27 20 7 4m9-2 7-3" fill="none" strokeWidth="2" strokeLinecap="round" />
+    </g>}
   </svg>
 }
 
@@ -30,11 +47,13 @@ function OrderBoard({ question, positions, update, practice, locked }: { questio
     <div className="order-grid">
       {question.cards.map((card, i) => {
         if (!card) return <div key={i} className="order-empty" aria-hidden="true" />
+        const quantity = card.goods.reduce((total, count) => total + count, 0)
         const label = card.goods.flatMap((qty, j) => qty ? [qty + ' ' + goodsNames[j] + (qty === 1 ? '' : 's')] : []).join(', ')
         return <div className={'order-card ' + (positions[i] ? 'has-position' : '')} key={i}>
           <div className="order-art" role="img" aria-label={label + ', position ' + positions[i]}>
+            <span className="lot-number" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
             <span className="position">{positions[i] > 0 ? '+' : ''}{positions[i]}</span>
-            <div className="goods">{card.goods.flatMap((qty, j) => Array.from({ length: qty }, (_, k) => <Goods key={j + '-' + k} type={j} />))}</div>
+            <div className="goods" data-size={quantity > 3 ? 'large' : quantity > 1 ? 'bundle' : 'single'}>{card.goods.flatMap((qty, j) => Array.from({ length: qty }, (_, k) => <Goods key={j + '-' + k} type={j} />))}</div>
           </div>
           <div className="quote-buttons">
             <button disabled={locked} onClick={() => step(i, -1)} aria-label={'Sell for $' + card.bid + ' · Lot ' + (i + 1) + ' · ' + label}>Sell for {'$'}{card.bid}</button>
@@ -74,6 +93,8 @@ export default function QuantPlay({ q, draft, answer, practice, act }: { q: Ques
   const drag = useRef<string | null>(null)
   const rankingList = useRef<HTMLOListElement>(null)
   const locked = answer !== undefined
+  const submittable = canSubmit(q, draft)
+  const invalidBounds = !locked && q.kind === 'interval' && draft.kind === 'interval' && draft.lower !== '' && draft.upper !== '' && !submittable
   const update = (next: Draft) => act({ type: 'draft', draft: next })
   const move = (order: string[], from: number, to: number) => {
     if (from === to || from < 0 || to < 0 || to >= order.length) return
@@ -86,12 +107,12 @@ export default function QuantPlay({ q, draft, answer, practice, act }: { q: Ques
     })
   }
   return <section className={'question question-' + q.kind} aria-label="Question">
-    <h2>{q.prompt}</h2>
+    {q.kind !== 'book' && <h2>{q.prompt}</h2>}
     {q.visual && <VisualBoard visual={q.visual} />}
     {q.kind === 'choice' && draft.kind === 'choice' && (q.typed ?
-      <label className="typed-answer">Your answer<input autoComplete="off" value={draft.value} maxLength={64} placeholder="Integer, decimal, or fraction" disabled={locked}
+      <label className="typed-answer">Your answer<input autoComplete="off" value={draft.value} maxLength={64} disabled={locked}
         onChange={e => update({ kind: 'choice', value: e.target.value })}
-        onKeyDown={e => { if (e.key === 'Enter' && canSubmit(q, draft)) act({ type: 'submit' }) }} /></label> :
+        onKeyDown={e => { if (e.key === 'Enter' && submittable) act({ type: 'submit' }) }} /></label> :
       <div className="choices" role="group" aria-label="Answer choices">{q.options.map((o, i) => <button key={o.key} className="choice"
         type="button" disabled={locked} aria-pressed={o.key === draft.value} onClick={() => update({ kind: 'choice', value: o.key })}>
         <span>{String.fromCharCode(65 + i)}</span>{o.label}
@@ -137,7 +158,8 @@ export default function QuantPlay({ q, draft, answer, practice, act }: { q: Ques
           return <div key={key}><label htmlFor={key + '-bound'}>{name}</label>
             <div className="number-stepper">
               <button className="icon-button" aria-label={'Decrease ' + name.toLowerCase()} disabled={locked} onClick={() => bump(-1)}><Minus size={17} /></button>
-              <input id={key + '-bound'} inputMode="numeric" value={value} placeholder="—" disabled={locked} onChange={e => change(e.target.value)} />
+              <input id={key + '-bound'} inputMode="numeric" value={value} placeholder="—" disabled={locked}
+                aria-invalid={invalidBounds} aria-describedby={invalidBounds ? "bound-error" : undefined} onChange={e => change(e.target.value)} />
               <button className="icon-button" aria-label={'Increase ' + name.toLowerCase()} disabled={locked} onClick={() => bump(1)}><Plus size={17} /></button>
             </div>
           </div>
@@ -147,10 +169,12 @@ export default function QuantPlay({ q, draft, answer, practice, act }: { q: Ques
         {locked ? <button className="primary" onClick={() => act({ type: 'next' })}>Next</button> : <>
           {q.kind === 'book' && draft.kind === 'book' && <button className="secondary" onClick={() => update({ kind: 'book', positions: draft.positions.map(() => 0) })}><RotateCcw size={16} /> Reset</button>}
           <button className="secondary" onClick={() => act({ type: 'skip' })}>Skip</button>
-          <button className="primary" disabled={!canSubmit(q, draft)} onClick={() => act({ type: 'submit' })}>Submit</button>
+          <button className="primary" disabled={!submittable} onClick={() => act({ type: 'submit' })}>Submit</button>
         </>}
       </div>
     </div>
-    {!locked && q.kind === 'interval' && !canSubmit(q, draft) && <p className="field-note">Enter two whole numbers in order{q.max ? ' from 0 to ' + q.max : ''}.</p>}
+    {invalidBounds && draft.kind === 'interval' && <p id="bound-error" className="bound-error">
+      {Number(draft.lower) > Number(draft.upper) ? 'Upper bound is below the lower bound.' : 'Bounds are outside the allowed range.'}
+    </p>}
   </section>
 }

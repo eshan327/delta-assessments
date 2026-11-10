@@ -1,61 +1,145 @@
-import {
-  ArrowDownUp, ArrowLeftRight, BarChart3, Calculator, CircleDot, Flame, Grid2X2, Keyboard, Layers3,
-  ListOrdered, Percent, Shapes, Sparkles, Target,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import type { Game } from '../engine/session.ts'
 import { zapName } from '../engine/zap.ts'
 
-export type GameInfo = { title: string; type: string; description: string; how: string; scoring: string; icon: LucideIcon; color: string }
+type GameInfo = { title: string; objective: string; rules: string[]; scoring?: string }
+
 export const gameInfo: Record<Game | 'zap-n', GameInfo> = {
-  'beat-the-odds': { title: 'Beat The Odds', type: 'Probability', description: 'Make decisions under uncertainty with probability and expected value.',
-    how: 'Read the conditions and select one answer. Fractional choices are exact; dollar amounts are rounded to cents.',
-    scoring: 'Default scoring is +1 correct, −1 incorrect, and 0 skipped.', icon: Percent, color: 'teal' },
-  numberlogic: { title: 'NumberLogic', type: 'Patterns', description: 'Find the rule behind a sequence or complete a missing table value.',
-    how: 'Look for differences, alternating rules, or interleaved sequences. Custom setup offers typed answers.',
-    scoring: 'Default scoring is +1 correct, −1 incorrect, and 0 skipped.', icon: Grid2X2, color: 'indigo' },
-  'likelihood-list': { title: 'Likelihood-list', type: 'Data reasoning', description: 'Read the evidence and rank three events from most to least likely.',
-    how: 'Drag the rows into order or use their up and down buttons. The current ranking is submitted when time runs out.',
-    scoring: 'The exact ordering earns 1 point. Other orders and skips earn 0.', icon: ListOrdered, color: 'purple' },
-  intervals: { title: 'Intervals', type: 'Estimation', description: 'Put a tight range around the true value in a visual estimation task.',
-    how: 'Enter two nonnegative whole numbers using the fields or the + and − controls. Use 0–100 for percentages.',
-    scoring: 'A range containing the answer earns lower ÷ upper. An exact [0, 0] hit earns 1. Misses and skips earn 0.', icon: ArrowLeftRight, color: 'teal' },
-  orderbooks: { title: 'Orderbooks', type: 'Trading logic', description: 'Buy and sell item bundles to find a profitable trade with zero inventory.',
-    how: 'Sell at the bid and buy at the ask. Use a card more than once when necessary. Reset clears your positions.',
-    scoring: 'Any profitable trade with zero remaining inventory earns 1 point. Other trades and skips earn 0.', icon: Layers3, color: 'ochre' },
-  'zap-n': { title: 'Zap-N', type: 'Cognitive arcade', description: 'Nine interactive games spanning memory, attention, planning, and reaction.',
-    how: 'Choose a game to play on its own or combine several in a battery.',
-    scoring: 'Each game reports its own raw performance measures.', icon: Sparkles, color: 'indigo' },
-  'classic-80-in-8': { title: 'Classic 80-in-8', type: 'Bonus · Mental math', description: 'Race through 80 arithmetic and algebra questions in eight minutes.',
-    how: 'Choose the best exact answer and submit. Use mental math and keep an eye on the shared clock.',
-    scoring: 'Default scoring is +1 correct and −1 for a wrong, skipped, or unanswered item.', icon: Calculator, color: 'sage' },
-  skyscrapers: { title: zapName.skyscrapers, type: 'Planning', description: 'Rearrange colored blocks to match a target arrangement.',
-    how: 'Select a tower with a top block, then choose a destination. You can use the tower number keys. Undo and Reset are available.',
-    scoring: 'Solved boards, elapsed time, and moves compared with a shortest solution.', icon: Layers3, color: 'indigo' },
-  balloon: { title: zapName.balloon, type: 'Risk and reward', description: 'Pump a balloon to build a reward, then cash out before it bursts.',
-    how: 'Choose Pump or Collect. Standard and penalty rounds alternate. Each threshold is set when the round is generated.',
-    scoring: 'Your total is collected cash minus any displayed burst penalties.', icon: CircleDot, color: 'purple' },
-  'grill-master': { title: zapName['grill-master'], type: 'Attention', description: 'Watch several steaks and pull each one during its cooking window.',
-    how: 'Select each steak when its status reads Cooked. The meter shows its own cooking progress.',
-    scoring: '+1 for cooked, −1 for raw or burnt removals. Missed items are tracked separately.', icon: Flame, color: 'ochre' },
-  'figure-it-out': { title: zapName['figure-it-out'], type: 'Deduction', description: 'Use feedback from each guess to deduce a hidden figure.',
-    how: 'Build a figure with the selectors and submit. The game tells you how many attributes match.',
-    scoring: 'Solved figures, guesses to solve, and time.', icon: Shapes, color: 'teal' },
-  'number-box': { title: zapName['number-box'], type: 'Arithmetic', description: 'Combine four tiles using arithmetic to reach a target number.',
-    how: 'Select two tiles in order and an operation. Use each original tile exactly once. Intermediate fractions are exact.',
-    scoring: 'A final tile matching the target earns a solve.', icon: Calculator, color: 'indigo' },
-  'code-compare': { title: zapName['code-compare'], type: 'Attention', description: 'Spot the exact code among three near matches under a shrinking clock.',
-    how: 'Select a code or press 1–4 to respond. Check every character and its position.',
-    scoring: 'Correct responses, errors, timeouts, and median correct response time.', icon: Keyboard, color: 'sage' },
-  digit: { title: zapName.digit, type: 'Working memory', description: 'Remember a digit string and reproduce it in the requested order.',
-    how: 'Watch the digits while visible. Enter them forward, backward, or sorted as requested, including zeroes and repeats.',
-    scoring: 'Exact recalls, response time, and highest correct digit span.', icon: BarChart3, color: 'purple' },
-  'the-switch': { title: zapName['the-switch'], type: 'Task switching', description: 'Switch between checking parity and comparing arrow groups.',
-    how: 'Answer only the highlighted panel. Left means Even or Same; right means Odd or Different.',
-    scoring: 'Accuracy and correct response time for switch and repeat trials.', icon: ArrowDownUp, color: 'teal' },
-  shapeshift: { title: zapName.shapeshift, type: 'Reaction', description: 'Respond to each shape as soon as it appears.',
-    how: 'Press left for a square, right for a circle, or use the matching buttons. Wait for the shape.',
-    scoring: 'Correct responses, wrong keys, missed stimuli, and median correct reaction time.', icon: Target, color: 'ochre' },
+  'beat-the-odds': {
+    title: 'Beat The Odds',
+    objective: 'Solve probability and expected-value questions.',
+    rules: [
+      'Choose one answer and select Submit. Fractions are exact. Round dollar answers to the nearest cent.',
+      'Select Skip to move on. An unsubmitted answer is skipped when time expires.',
+    ],
+  },
+  numberlogic: {
+    title: 'NumberLogic',
+    objective: 'Find the missing term or table value.',
+    rules: [
+      'Choose an answer and select Submit. Use Custom to switch to typed answers.',
+      'Select Skip to move on. The clock applies to the whole section.',
+    ],
+  },
+  'likelihood-list': {
+    title: 'Likelihood-list',
+    objective: 'Rank three outcomes from most likely to least likely.',
+    rules: [
+      'Drag the statements into order or use the up and down arrow buttons.',
+      'Select Submit to lock in the order or Skip to move on.',
+      'The current order is submitted when time runs out.',
+    ],
+    scoring: 'An exact ranking earns 1 point. An incorrect ranking or a skip earns 0.',
+  },
+  intervals: {
+    title: 'Intervals',
+    objective: 'Give an interval that contains the answer.',
+    rules: [
+      'Type nonnegative whole-number bounds or adjust them with + and −. The bounds can be equal.',
+      'Use the 0–100 scale for probabilities. Enter 50 for a 50% chance.',
+      'Select Submit or Skip. Valid bounds are submitted when time runs out.',
+    ],
+    scoring: 'If the interval contains the answer, including either endpoint, score lower bound ÷ upper bound. A miss or skip earns 0. An exact [0, 0] hit earns 1.',
+  },
+  orderbooks: {
+    title: 'Orderbooks',
+    objective: 'Make a profit and finish with zero inventory.',
+    rules: [
+      'Each board has one opportunity. Buy or sell each lot, which may contain several items, at its listed price.',
+      'The signed counter tracks your position. Repeat a trade to change the quantity. Reset clears all positions.',
+      'Submit once every item balances and the trade makes a profit, or skip the board.',
+    ],
+    scoring: 'Any profitable trade with zero inventory earns 1 point, regardless of profit size. An incorrect trade or a skip earns 0.',
+  },
+  'classic-80-in-8': {
+    title: 'Classic 80-in-8',
+    objective: 'Solve the arithmetic.',
+    rules: [
+      'Choose an answer and select Submit, or select Skip.',
+      'One clock covers the whole section. Unanswered questions count as skips.',
+    ],
+  },
+  skyscrapers: {
+    title: zapName.skyscrapers,
+    objective: 'Match the target towers.',
+    rules: [
+      'Select a source tower, then a different destination. Only the top block can move.',
+      'Use the tower number keys or the buttons. Undo takes back one move. Reset restores the starting board.',
+    ],
+    scoring: 'Results show boards solved, time, and your moves against the shortest solution.',
+  },
+  balloon: {
+    title: zapName.balloon,
+    objective: 'Collect the balloon’s cash before it bursts.',
+    rules: [
+      'Select Pump to add to the round’s reward. Select Collect to bank it and move to the next balloon.',
+      'A burst loses the round’s reward. On penalty rounds it also subtracts the displayed amount from your total.',
+    ],
+    scoring: 'Your score is the cash you collect minus burst penalties.',
+  },
+  'grill-master': {
+    title: zapName['grill-master'],
+    objective: 'Remove each steak while it is cooked.',
+    rules: [
+      'Each steak has its own clock. The meter marks its cooking window.',
+      'Click or tap the steak while its status reads Cooked.',
+    ],
+    scoring: '+1 for cooked, −1 for raw or burnt. Missed steaks are counted separately.',
+  },
+  'figure-it-out': {
+    title: zapName['figure-it-out'],
+    objective: 'Find the hidden combination of attributes.',
+    rules: [
+      'Choose attributes and submit a guess.',
+      'The result gives the number of matching attributes. Use previous guesses to narrow down the possibilities.',
+    ],
+    scoring: 'Results show figures solved, guesses, and time.',
+  },
+  'number-box': {
+    title: zapName['number-box'],
+    objective: 'Reach the target using all four starting numbers.',
+    rules: [
+      'Select two tiles in order and choose +, −, ×, or ÷. The result replaces those tiles.',
+      'Use each starting number once. Intermediate fractions are exact. Submit when one tile remains.',
+    ],
+    scoring: 'A final tile equal to the target counts as a solve.',
+  },
+  'code-compare': {
+    title: zapName['code-compare'],
+    objective: 'Find the code that matches the reference exactly.',
+    rules: [
+      'Choose one of the four codes or press 1–4.',
+      'Each item has a time limit. The limit gets shorter during the run.',
+    ],
+    scoring: 'Results show correct responses, errors, timeouts, and median correct response time.',
+  },
+  digit: {
+    title: zapName.digit,
+    objective: 'Recall the digits after they disappear.',
+    rules: [
+      'Read the requested order. The answer may be forward, reversed, or sorted.',
+      'Enter every digit, including leading zeros and repeats, then submit.',
+    ],
+    scoring: 'Results show exact recalls, response time, and the longest correct sequence.',
+  },
+  'the-switch': {
+    title: zapName['the-switch'],
+    objective: 'Answer the highlighted rule.',
+    rules: [
+      'For the sum, choose Even or Odd. For the arrows, choose Same or Different.',
+      'Use the buttons or press Left for Even or Same and Right for Odd or Different.',
+    ],
+    scoring: 'Accuracy and response time are reported separately for switch and repeat trials.',
+  },
+  shapeshift: {
+    title: zapName.shapeshift,
+    objective: 'Respond when a shape appears.',
+    rules: [
+      'Press Left for a square and Right for a circle, or tap the matching button.',
+      'Wait for the shape before responding.',
+    ],
+    scoring: 'Results show correct responses, errors, misses, and median correct reaction time.',
+  },
+  'zap-n': { title: 'Zap-N', objective: '', rules: [] },
 }
 
 export function timeLabel(seconds: number) {

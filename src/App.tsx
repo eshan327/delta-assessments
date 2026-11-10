@@ -1,7 +1,7 @@
-import { Download, History, House, Settings2, Triangle, Upload } from 'lucide-react'
+import { ArrowLeft, Download, Upload } from 'lucide-react'
 import { Component, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { HashRouter, Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { HashRouter, Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { defaultStage, gameIds, stageSchema } from './engine/session.ts'
 import type { Game, Settings, Stage } from './engine/session.ts'
 import { clearData, exportData, importData, openData, saveSettings, useData } from './engine/storage.ts'
@@ -18,10 +18,11 @@ function HistoryPage() {
   const trend = game ? filtered.slice(0, 12).reverse().map(a => resultScore(a.results.find(r => r.game === game)!)) : []
   const max = Math.max(1, ...trend.map(Math.abs))
   return <>
-    <div className="page-heading"><h1>History</h1><p>Review saved sessions and follow your progress on this device.</p></div>
+    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
+    <div className="page-heading"><h1>History</h1></div>
     <section className="panel">
       <h2>Saved runs</h2>
-      {attempts.length === 0 && <p>No saved runs yet. <Link to="/">Choose a game to get started.</Link></p>}
+      {attempts.length === 0 && <p>No saved runs yet.</p>}
       {attempts.filter(a => a.phase !== 'done').map(a => <div className="history-row" key={a.id}><span><strong>{a.title}</strong><small>In progress</small></span>
         <Link className="secondary" to={'/play/' + a.id}>Resume</Link></div>)}
       {finished.length > 0 && <>
@@ -58,7 +59,8 @@ function SettingsPage() {
   const stage = draft ?? defaultStage(game, 'timed', settings)
   const valid = stageSchema.safeParse(stage).success && (stage.kind === 'zap' ? stage.seconds >= 120 : stage.seconds > 0)
   return <>
-    <div className="page-heading"><h1>Settings</h1><p>Preferences and attempts are saved on this device.</p></div>
+    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
+    <div className="page-heading"><h1>Settings</h1></div>
     <section className="panel">
       <h2>Display and defaults</h2>
       <div className="form-grid">
@@ -91,7 +93,7 @@ function SettingsPage() {
           edit({ presets }); setDraft(null); setMessage('Default preset restored.')
         }}>Restore default</button></div>
     </section>
-    <section className="panel"><h2>Local data</h2><div className="actions">
+    <section className="panel"><h2>Local data</h2><p>Saved on this device.</p><div className="actions">
       <button className="secondary" onClick={() => {
         const url = URL.createObjectURL(new Blob([exportData()], { type: 'application/json' }))
         const download = document.createElement('a'); download.href = url; download.download = 'delta-assessments-backup.json'; download.click()
@@ -115,9 +117,8 @@ function SettingsPage() {
 }
 
 function About() {
-  return <section className="panel about"><h1>About Delta Assessments</h1>
-    <p>Delta is an independent practice site for quantitative reasoning and cognitive games. Practice measures are calculated from your play.</p>
-    <h2>Seeded questions</h2><p>Questions are procedurally generated and checked by separate solvers. A challenge link stores the generator version and preset alongside the seed.</p>
+  return <section className="panel about"><Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link><h1>About</h1>
+    <h2>Challenge links</h2><p>A link replays the same seed, generator version, and settings.</p>
     <h2>Keyboard controls</h2><p>Tab moves through controls. Use the ranking arrow buttons to change order, 1–4 for code choices and tower numbers, and left or right for reaction games.</p>
     <h2>On-device data</h2><p>History and preferences are stored in your browser. Export a JSON backup from Settings to carry them between devices.</p>
     <Link className="secondary" to="/settings">Open settings</Link>
@@ -131,7 +132,7 @@ function GameRoute() {
 }
 
 function Missing() {
-  return <section className="panel"><h1>Page unavailable</h1><Link to="/">Assessment library</Link></section>
+  return <section className="panel"><h1>Page unavailable</h1><Link to="/">Assessments</Link></section>
 }
 
 class AppBoundary extends Component<{ children: ReactNode }, { error: string }> {
@@ -139,7 +140,7 @@ class AppBoundary extends Component<{ children: ReactNode }, { error: string }> 
   static getDerivedStateFromError(error: Error) { return { error: error.message } }
   render() {
     return this.state.error ? <section className="panel" role="alert"><h1>This screen could not open</h1>
-      <p>{this.state.error}</p><a className="secondary" href={import.meta.env.BASE_URL}>Return to the library</a></section> : this.props.children
+      <p>{this.state.error}</p><a className="secondary" href={import.meta.env.BASE_URL}>Assessments</a></section> : this.props.children
   }
 }
 
@@ -156,18 +157,9 @@ function Layout() {
   }, [settings.compact, settings.reducedMotion, settings.theme])
   return <>
     <a className="skip-link" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
-    <header className="site-header"><div className="header-inner">
-      {playing ? <span className="brand"><span className="brand-mark"><Triangle size={20} strokeWidth={2.4} /></span> Delta Assessments</span> :
-        <Link className="brand" to="/"><span className="brand-mark"><Triangle size={20} strokeWidth={2.4} /></span> Delta Assessments</Link>}
-      {!playing && <nav aria-label="Main navigation">
-        <NavLink to="/" end><House size={17} /> Library</NavLink>
-        <NavLink to="/history"><History size={17} /> History</NavLink>
-        <NavLink to="/settings"><Settings2 size={17} /> Settings</NavLink>
-      </nav>}
-    </div></header>
-    <main id="main-content" tabIndex={-1} className={playing ? 'main playing' : 'main'}>
+    <main id="main-content" tabIndex={-1} className={playing ? 'main playing' : pathname === '/' ? 'main folio-page' : 'main'}>
       {warning && <p className="notice" role="status">{warning}</p>}
-      {!ready ? <p className="loading" role="status">Opening Delta Assessments…</p> : <AppBoundary key={pathname}>
+      {!ready ? <p className="loading" role="status">Loading…</p> : <AppBoundary key={pathname}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/game/:game" element={<GameRoute />} />
@@ -183,7 +175,6 @@ function Layout() {
         </Routes>
       </AppBoundary>}
     </main>
-    {!playing && <footer className="site-footer"><span>Delta Assessments</span><Link to="/about">About and keyboard controls</Link></footer>}
   </>
 }
 

@@ -81,7 +81,6 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
     {Number.isFinite(deadline) && <div className="trial-meter" role="meter" aria-label="Trial time remaining" aria-valuemin={0} aria-valuemax={100}
       aria-valuenow={Math.round(Math.max(0, 1 - age / deadline) * 100)}><div style={{ width: Math.max(0, 1 - age / deadline) * 100 + '%' }} /></div>}
     {round.game === 'skyscrapers' && work.kind === 'towers' && <>
-      <h2>Match the target towers</h2><p className="muted">Pick a source tower, then a different destination. Only the top block moves.</p>
       <div className="tower-panels">
         <div><h3>Your towers</h3><TowerRow board={towerBoard(round, work)} source={work.source} choose={index => act({ type: 'tower', index })} /></div>
         <div><h3>Target</h3><TowerRow board={round.goal} /></div>
@@ -92,8 +91,13 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
       </div></div>
     </>}
     {round.game === 'balloon' && work.kind === 'balloon' && <>
-      <div className="balloon-stats"><span>Round reward <strong>{'$'}{work.pumps * round.reward}</strong></span>
-        <span>Total collected <strong>{'$'}{sum(state.entries.map(e => e.earned ?? 0))}</strong></span></div>
+      <div className="balloon-stats">
+        <span>Round <strong>{'$'}{work.pumps * round.reward}</strong></span>
+        <span>Collected <strong>{'$'}{sum(state.entries.map(e => e.earned ?? 0))}</strong></span>
+        <span>Per pump <strong>{'$'}{round.reward}</strong></span>
+        {round.penalty > 0 && <span>Burst penalty <strong>−{'$'}{round.penalty}</strong></span>}
+        {practice && <span>Burst range <strong>{round.minimum}–{round.maximum}</strong></span>}
+      </div>
       <div className="balloon-stage"><svg viewBox="0 0 180 200" className="balloon-art" role="img" aria-label={'Balloon after ' + work.pumps + ' pumps'}
         style={{ transform: 'scale(' + (0.78 + work.pumps * 0.037) + ')' }}>
         <defs><radialGradient id="balloon-color" cx="31%" cy="24%" r="70%"><stop stopColor="#96e3dc" /><stop offset="1" stopColor="#1b7d88" /></radialGradient></defs>
@@ -102,15 +106,11 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
         <path d="M90 150C41 135 20 82 40 45 58 12 117 12 137 42 159 80 139 131 90 150Z" fill="url(#balloon-color)" />
         <path d="M58 50Q46 68 50 87" fill="none" stroke="#dbfbf7" opacity=".65" strokeWidth="6" strokeLinecap="round" />
       </svg></div>
-      <h2>{round.penalty ? 'Penalty round' : 'Standard round'}</h2>
-      <p className="muted">Each successful pump adds {'$'}{round.reward}. A burst loses this balloon’s reward{round.penalty ? ' and deducts $' + round.penalty + ' from your total' : ''}.
-        {practice ? ' The burst threshold is uniformly chosen from pumps ' + round.minimum + '–' + round.maximum + '.' : ''}</p>
       {practice && state.entries.at(-1)?.note && <p role="status">{state.entries.at(-1)?.note}</p>}
       <div className="actions"><button className="secondary" onClick={() => act({ type: 'collect' })}>Collect</button>
         <button className="primary" onClick={() => act({ type: 'pump' })}>Pump</button></div>
     </>}
     {round.game === 'grill-master' && work.kind === 'grill' && <>
-      <h2>Pull each steak in the cooked window</h2><p className="muted">Cooked earns 1 point. Raw or burnt costs 1 point. Each steak has its own clock.</p>
       <div className="grill">{Array.from({ length: Math.max(1, ...round.items.map(x => x.lane + 1)) }, (_, lane) => {
         const i = round.items.findIndex((item, i) => item.lane === lane && !work.acted.includes(i) && item.spawn <= elapsed && item.leave > elapsed)
         const item = round.items[i], label = !item ? 'Waiting' : elapsed < item.ready ? 'Raw' : elapsed < item.burnt ? 'Cooked' : 'Burnt'
@@ -128,7 +128,6 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
       <p><Flame size={16} aria-hidden="true" /> {state.entries.filter(e => e.state === 'correct').length} cooked · {state.entries.filter(e => e.state === 'wrong').length} errors</p>
     </>}
     {round.game === 'figure-it-out' && work.kind === 'figure' && <>
-      <h2>Deduce the hidden figure</h2><p className="muted">After each guess, see how many attributes match. The matching attributes stay hidden.</p>
       <div className="figure-builder"><div><Figure selection={work.selection} /></div><div className="attribute-grid">
         {round.domains.map((n, i) => <label key={i}>{attributes[i].name}<select value={work.selection[i]} onChange={e => act({ type: 'attribute', index: i, value: Number(e.target.value) })}>
           {attributes[i].values.slice(0, n).map((value, j) => <option key={value} value={j}>{value}</option>)}
@@ -139,7 +138,7 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
       {work.guesses.length > 0 && <ol className="guess-list">{work.guesses.map((g, i) => <li key={i}>{g.guess.map((x, j) => attributes[j].values[x]).join(' · ')} <strong>{g.matches} matching</strong></li>)}</ol>}
     </>}
     {round.game === 'number-box' && work.kind === 'box' && <>
-      <h2>Reach {round.target} with all four numbers</h2><p className="muted">Select two tiles in order, then an operation. Each tile can be used once. Fractions are exact.</p>
+      <h2>Target {round.target}</h2>
       <div className="tile-tray">{tiles.map(t => <button key={t.id} className="number-tile" data-tile={t.id} aria-pressed={work.selected.includes(t.id)}
         onClick={() => act({ type: 'tile', id: t.id })}><strong>{t.value}</strong>{t.label !== t.value && <small>{t.label}</small>}</button>)}</div>
       <div className="operators">{operators.map(op => <button key={op} className="secondary" disabled={work.selected.length !== 2 || (op === '÷' && tiles.find(t => t.id === work.selected[1])?.value === '0')}
@@ -150,13 +149,13 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
       </div><button className="primary" disabled={tiles.length !== 1} onClick={() => act({ type: 'submit-box' })}>Submit</button></div>
     </>}
     {round.game === 'code-compare' && <>
-      <h2>Find the exact match</h2><div className="code-reference" aria-label={'Reference ' + round.reference}>{round.reference}</div>
+      <div className="code-reference" aria-label={'Reference ' + round.reference}>{round.reference}</div>
       <div className="code-choices">{round.options.map((text, i) => <button className="choice" key={text} onClick={() => act({ type: 'answer', index: i })}>
-        <span>{i + 1}</span><code>{text}</code></button>)}</div><p className="muted">Choose an option or press 1–4.</p>
+        <span>{i + 1}</span><code>{text}</code></button>)}</div>
     </>}
     {round.game === 'digit' && work.kind === 'digit' && <>
-      <h2>{age < round.exposure ? 'Remember the digits' : 'Enter the digits'}</h2>
-      <p className="muted">Order: {round.rule === 'ascending' ? 'smallest to largest, including repeats' : round.rule}</p>
+      <h2>{age < round.exposure ? 'Memorize' : 'Recall'}</h2>
+      <p className="muted">Order: {round.rule}</p>
       {age < round.exposure ? <div className="digit-display" aria-label="Digits to remember">{round.digits}</div> : <div className="digit-entry">
         <label>Recalled sequence<input inputMode="numeric" autoComplete="off" value={work.value} placeholder={'·'.repeat(round.digits.length)}
           onChange={e => act({ type: 'digit', value: e.target.value.replace(/\D/g, '') })} onKeyDown={e => { if (e.key === 'Enter') act({ type: 'submit-digit' }) }} /></label>
@@ -166,13 +165,12 @@ export default function ZapPlay({ round, state, elapsed, practice, act }: {
         </div></div>}
     </>}
     {round.game === 'the-switch' && <>
-      <h2>Answer the highlighted rule</h2>
       <div className="switch-panels"><div className={round.rule === 'sum' ? 'active-stimulus' : ''}><p>Sum {round.rule === 'sum' ? '· Active' : ''}</p><strong>{round.a} + {round.b}</strong></div>
         <div className={round.rule === 'arrows' ? 'active-stimulus' : ''}><p>Arrows {round.rule === 'arrows' ? '· Active' : ''}</p><strong>{round.arrows.join(' / ')}</strong></div></div>
       <RapidButtons names={round.rule === 'sum' ? ['Even', 'Odd'] : ['Same', 'Different']} act={act} />
     </>}
     {round.game === 'shapeshift' && <>
-      <h2>Square left. Circle right.</h2><div className="reaction-board">
+      <div className="reaction-board">
         {age < round.delay ? <span className="fixation" aria-label="Wait for the shape">+</span> :
           <span className={'shape shape-' + round.shape} role="img" aria-label={round.shape} />}
       </div><RapidButtons names={['Square', 'Circle']} available={age >= round.delay} act={act} />
