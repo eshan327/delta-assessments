@@ -17,9 +17,22 @@ function quant(game: Game, count: number, seconds = 80, itemSeconds = 0) {
 }
 const arcade = (game: typeof zapIds[number], seconds = 120): ZapStage => ({ kind: 'zap', game, difficulty: 3, seconds, rounds: 1 })
 
-async function start(page: Page, challenge: Challenge) {
+async function clickAtPosition(page: Page, target: ReturnType<Page['getByRole']>) {
+  await expect(target).toBeVisible()
+  const box = (await target.boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
+async function start(page: Page, challenge: Challenge, freezeClock = false) {
   await page.goto('./#/challenge?' + shareQuery(challenge))
-  await page.getByRole('button', { name: 'Start challenge' }).click()
+  const button = page.getByRole('button', { name: 'Start challenge' })
+  if (freezeClock) {
+    await expect(button).toBeVisible()
+    const future = await page.evaluate(() => Date.now() + 60_000)
+    await page.clock.pauseAt(future)
+    await clickAtPosition(page, button)
+    await page.clock.runFor(90)
+  } else await button.click()
   await expect(page).toHaveURL(/#\/play\/[0-9a-f]+$/)
 }
 
@@ -51,8 +64,8 @@ async function playArcade(page: Page, c: Challenge, index: number) {
       break
     case 'grill-master': {
       const item = round.items[0]
-      await page.clock.fastForward(item.ready + 30)
-      await page.getByRole('button', { name: /Grill 1, Cooked/ }).click()
+      await page.clock.runFor(item.ready + 20)
+      await clickAtPosition(page, page.getByRole('button', { name: /Grill 1, Cooked/ }))
       await expect(page.getByText(/1 cooked · 0 errors/)).toBeVisible()
       await page.clock.fastForward(stage.seconds * 1000)
       break
@@ -209,7 +222,7 @@ test('Orderbooks solves a trade, resets positions, and completes 20 boards in ei
 for (const game of zapIds) test(zapName[game] + ' plays to a real result', async ({ page }, info) => {
   await page.clock.install()
   const c = create([arcade(game, game === 'grill-master' ? 7 : 120)], 'arcade-' + game, 'timed', zapName[game])
-  await start(page, c)
+  await start(page, c, game === 'grill-master')
   await expect(page.getByRole('region', { name: 'Game board' })).toBeVisible()
   if (game === 'skyscrapers' || game === 'balloon' || game === 'number-box') await page.screenshot({ path: info.outputPath(game + '.png') })
   await playArcade(page, c, 0)
