@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, GripVertical, Minus, Plus, RotateCcw } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { canSubmit, tradeTotals } from '../engine/questions.ts'
 import type { Book, Draft, Question } from '../engine/questions.ts'
 import { goodsNames } from '../engine/orderbooks.ts'
@@ -107,7 +107,7 @@ export default memo(function QuantPlay({ q, draft, answer, practice, act }: { q:
   const submittable = canSubmit(q, draft)
   const invalidBounds = !locked && q.kind === 'interval' && draft.kind === 'interval' && draft.lower !== '' && draft.upper !== '' && !submittable
   const update = (next: Draft) => act({ type: 'draft', draft: next })
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return
       const target = event.target instanceof HTMLElement ? event.target : null
