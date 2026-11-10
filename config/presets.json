@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mainSix": ["beat-the-odds", "numberlogic", "likelihood-list", "intervals", "orderbooks", "zap-n"],
+  "sections": {
+    "beat-the-odds": {
+      "title": "Beat The Odds", "examSeconds": 1500, "questionSeconds": 90,
+      "questionCount": 20, "countEditable": true, "timingEditable": true,
+      "scoring": {"correct": 1, "wrong": -1, "skip": 0},
+      "modeNote": "25-minute window from 2026 invitation; item count and per-question clock are editable practice defaults"
+    },
+    "numberlogic": {
+      "title": "NumberLogic", "examSeconds": 1500, "questionSeconds": null,
+      "questionCount": 26, "countEditable": true, "timingEditable": true,
+      "scoring": {"correct": 1, "wrong": -1, "skip": 0},
+      "modeNote": "25-minute window from 2026 invitation; 26 question practice count from third-party references"
+    },
+    "likelihood-list": {
+      "title": "Likelihood-list", "examSeconds": 1500, "questionSeconds": 90,
+      "questionCount": 15, "countEditable": true, "timingEditable": true,
+      "scoring": {"exactRanking": 1, "other": 0},
+      "modeNote": "Exact ranking +1 from user's screenshot; clocks/count editable"
+    },
+    "intervals": {
+      "title": "Intervals", "examSeconds": 900, "questionSeconds": 60,
+      "questionCount": 18, "countEditable": true, "timingEditable": true,
+      "scoring": {"algorithm": "inclusive_lower_div_upper_for_positive_bounds", "miss": 0, "skip": 0},
+      "modeNote": "Screenshot-confirmed lower / upper score; 15-minute invitation window"
+    },
+    "orderbooks": {
+      "title": "Orderbooks", "examSeconds": 480, "questionSeconds": null,
+      "questionCount": 20, "countEditable": true, "timingEditable": true,
+      "scoring": {"validProfitableFlat": 1, "wrong": 0, "skip": 0},
+      "modeNote": "20 questions / 8 minutes / one point per profitable flat trade from original in-game tutorial"
+    },
+    "zap-n": {
+      "title": "Zap-N", "gameDurationMinSeconds": 120, "gameDurationMaxSeconds": 900,
+      "defaultSelected": ["skyscrapers", "balloon", "code-compare"],
+      "allGames": ["skyscrapers", "balloon", "grill-master", "figure-it-out", "number-box", "code-compare", "digit", "the-switch", "shapeshift"],
+      "gameSelectionEditable": true, "perGameTimingEditable": true,
+      "modeNote": "One or more 2-15 minute games documented in invitation; three-game selection is an app practice preset"
+    }
+  },
+  "bonus": {
+    "classic-80-in-8": {"title": "Classic 80-in-8", "examSeconds": 480, "questionCount": 80, "correct": 1, "wrong": -1, "skip": -1, "includeInMainMock": false}
+  },
+  "defaults": {"difficulty": 3, "storage": "indexeddb", "theme": "system", "showTutorialOnFirstPlay": true, "practiceShowsExplanations": true, "examShowsExplanationsOnlyAtEnd": true, "seedMode": "fresh", "recentFingerprintAvoidance": 200}
+}

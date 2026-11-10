@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+qa-report.json
+reference-photos/
+reference-contact-sheets/
+*.zip
