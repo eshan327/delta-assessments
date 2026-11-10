@@ -121,7 +121,7 @@ export function RunPage() {
   </div>
 }
 
-export function resultScore(result: StageResult) {
+function resultScore(result: StageResult) {
   return result.kind === 'quant' ? sum(result.answers.map(a => a.points)) :
     result.game === 'balloon' || result.game === 'grill-master' ? zapSummary(result.entries).earnings : zapSummary(result.entries).correct
 }
@@ -195,7 +195,7 @@ export function ResultsPage() {
   const run = useData(s => s.attempts.find(a => a.id === id))
   const { start, starting, error } = useStart()
   const [copied, setCopied] = useState<boolean | null>(null)
-  if (!run) return <section className="panel"><h1>Results unavailable</h1><Link to="/history">View history</Link></section>
+  if (!run) return <section className="panel"><h1>Results unavailable</h1><Link to="/">Assessments</Link></section>
   if (run.phase !== 'done') return <Navigate to={'/play/' + run.id} replace />
   const link = new URL(import.meta.env.BASE_URL, window.location.origin)
   link.hash = '/challenge?' + shareQuery(run)
@@ -206,7 +206,6 @@ export function ResultsPage() {
       <div className="actions"><button className="primary" disabled={starting} onClick={() => start({ mode: run.mode, title: run.title, stages: run.stages })}>
         <RotateCcw size={17} /> Retake with new seed</button>
         <button className="secondary" onClick={async () => setCopied(await copyLink(String(link)))}><Clipboard size={17} /> Copy challenge link</button>
-        <Link className="quiet" to="/history">History <ArrowRight size={17} /></Link>
       </div>
       {copied === true && <p role="status">Challenge link copied.</p>}
       {copied === false && <label className="copy-fallback">Challenge link<input readOnly value={String(link)} onFocus={e => e.target.select()} /></label>}

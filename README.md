@@ -15,7 +15,7 @@ Open the local URL with the /delta-assessments/ prefix. A production build uses 
 
 ## Play and share
 
-Start with a tutorial, choose Practice or Timed, or set a custom duration, difficulty, and question mix. Full assessment runs follow the portal order. Continue between stages when ready. Settings and history are stored in your browser and can be exported as JSON.
+Start with a tutorial, choose Practice or Timed, or set a custom duration, difficulty, and question mix. Full assessment runs follow the portal order. Continue between stages when ready. Settings and runs are stored in your browser. Backups are available under Local data in Settings.
 
 After a run, choose **Retake with new seed** for fresh content or **Copy challenge link** to reproduce the exact question order and settings on another device. The challenge encodes the generator version.
 

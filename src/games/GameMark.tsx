@@ -21,7 +21,7 @@ export function DeltaMark() {
   </svg>
 }
 
-export default function GameMark({ game }: { game: Game | 'zap-n' }) {
+export default function GameMark({ game }: { game: Game }) {
   if (game in zapMarks) {
     const Icon = zapMarks[game as keyof typeof zapMarks]
     return <Icon className="game-mark" size={30} strokeWidth={1.5} aria-hidden="true" />
@@ -48,10 +48,6 @@ export default function GameMark({ game }: { game: Game | 'zap-n' }) {
     </>}
     {game === 'orderbooks' && <>
       <path d="M37 5h26v13H37zm0 0 26 13M63 5 37 18M22 23h26v13H22zm0 0 26 13m0-13L22 36m30-13h26v13H52zm0 0 26 13m0-13L52 36" />
-    </>}
-    {game === 'zap-n' && <>
-      <path d="M18 8h27v26H18zm37 0h27v26H55zM31.5 16v10M26 21h11" />
-      <path d="M64 16h9v10h-9z" fill="currentColor" />
     </>}
     {game === 'classic-80-in-8' && <>
       <path d="M18 9h9v9h-9zm18 0h9v9h-9zm18 0h9v9h-9zm18 0h9v9h-9zM18 24h9v9h-9zm18 0h9v9h-9zm18 0h9v9h-9zm18 0h9v9h-9z" />

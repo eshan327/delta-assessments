@@ -3,7 +3,7 @@ import { zapName } from '../engine/zap.ts'
 
 type GameInfo = { title: string; objective: string; rules: string[]; scoring?: string }
 
-export const gameInfo: Record<Game | 'zap-n', GameInfo> = {
+export const gameInfo: Record<Game, GameInfo> = {
   'beat-the-odds': {
     title: 'Beat The Odds',
     objective: 'Solve probability and expected-value questions.',
@@ -139,7 +139,6 @@ export const gameInfo: Record<Game | 'zap-n', GameInfo> = {
     ],
     scoring: 'Results show correct responses, errors, misses, and median correct reaction time.',
   },
-  'zap-n': { title: 'Zap-N', objective: '', rules: [] },
 }
 
 export function timeLabel(seconds: number) {

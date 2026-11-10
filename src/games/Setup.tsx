@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { catalog } from '../engine/catalog.ts'
 import { newSeed } from '../engine/core.ts'
-import { begin, decodeChallenge, defaultStage, freshChallenge, mainGames, stageSchema } from '../engine/session.ts'
+import { begin, decodeChallenge, defaults, defaultStage, freshChallenge, mainGames, quantIds, stageSchema } from '../engine/session.ts'
 import type { Challenge, Game, Mode, Stage } from '../engine/session.ts'
 import { saveAttempt, useData } from '../engine/storage.ts'
 import { zapIds } from '../engine/zap.ts'
@@ -39,11 +39,9 @@ function stageMeta(stage: Stage) {
   return stage.kind === 'quant' ? stage.count + ' questions · ' + timeLabel(stage.seconds) : timeLabel(stage.seconds)
 }
 
-const assessmentGames = [...mainGames, 'classic-80-in-8'] as (Game | 'zap-n')[]
-
-function GameList({ games }: { games: readonly (Game | 'zap-n')[] }) {
-  return <ul className="game-list">{games.map(game => <li key={game}>
-    <Link className="game-row" to={game === 'zap-n' ? '/zap-n' : '/game/' + game}>
+function GameList({ games }: { games: readonly Game[] }) {
+  return <ul className="game-list" role="list">{games.map(game => <li key={game}>
+    <Link className="game-row" to={'/game/' + game}>
       <span className="game-symbol"><GameMark game={game} /></span>
       <strong>{gameInfo[game].title}</strong>
       <ArrowRight className="game-arrow" size={21} strokeWidth={1.6} aria-hidden="true" />
@@ -53,27 +51,27 @@ function GameList({ games }: { games: readonly (Game | 'zap-n')[] }) {
 
 export function Home() {
   const resume = useData(s => s.attempts.find(a => a.phase !== 'done'))
-  return <div className="assessment-index folio">
+  return <div className="folio">
     <header className="folio-cover">
       <DeltaMark />
       <h1>Delta Assessments</h1>
       <div className="actions">
         <Link className="secondary index-action" to="/full">Full mock <ArrowUpRight size={18} /></Link>
+        <Link className="folio-settings" to="/settings">Settings</Link>
         {resume && <Link className="quiet" to={'/play/' + resume.id}>Resume run</Link>}
       </div>
     </header>
-    <section className="folio-index" aria-label="Assessments">
-      <GameList games={assessmentGames} />
-    </section>
-    <nav className="folio-utilities" aria-label="Utilities">
-      <Link to="/history">History</Link>
-      <Link to="/settings">Settings</Link>
-      <Link to="/about">About</Link>
-    </nav>
+    <div className="folio-index">
+      <section aria-label="Assessments"><GameList games={quantIds} /></section>
+      <section className="zap-index" id="zap-n" tabIndex={-1} aria-labelledby="zap-n-title">
+        <h2 id="zap-n-title">Zap-N</h2>
+        <GameList games={zapIds} />
+      </section>
+    </div>
   </div>
 }
 
-export function StageFields({ stage, onChange, full = false }: { stage: Stage; onChange: (s: Stage) => void; full?: boolean }) {
+function StageFields({ stage, onChange, full = false }: { stage: Stage; onChange: (s: Stage) => void; full?: boolean }) {
   return <div className="stage-fields">
     <div className="form-grid">
       <label>Difficulty<select value={stage.difficulty} onChange={e => onChange({ ...stage, difficulty: Number(e.target.value) as Stage['difficulty'] })}>
@@ -128,7 +126,7 @@ export function GameIntro({ game }: { game: Game }) {
   ].join(' · '))
   return <>
     <section className="rule-sheet" aria-label={info.title + ' instructions'}>
-      <Link className="back-link" to={timed.kind === 'zap' ? '/zap-n' : '/'}><ArrowLeft size={17} />
+      <Link className="back-link" to={timed.kind === 'zap' ? '/#zap-n' : '/'}><ArrowLeft size={17} />
         {timed.kind === 'zap' ? 'Zap-N' : 'Assessments'}
       </Link>
       <header className="rule-heading">
@@ -175,37 +173,20 @@ export function GameIntro({ game }: { game: Game }) {
   </>
 }
 
-export function ZapHub() {
-  return <div className="assessment-index arcade-index">
-    <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
-    <header className="index-heading">
-      <h1>Zap-N</h1>
-      <Link className="secondary index-action" to="/full?arcade=1">Zap-N battery <ArrowUpRight size={19} /></Link>
-    </header>
-    <GameList games={zapIds} />
-  </div>
-}
-
 export function FullSetup() {
   const settings = useData(s => s.settings)
   const [query] = useSearchParams()
   const onlyZap = query.get('arcade') === '1'
-  const base = (onlyZap ? [] : mainGames.filter(id => id !== 'zap-n')) as Game[]
-  const [selected, setSelected] = useState(settings.games), [includeBonus, setBonus] = useState(false)
-  const [edited, setEdited] = useState<Record<string, Stage>>({})
-  const stages = [...base, ...selected, ...(includeBonus ? ['classic-80-in-8' as const] : [])].map(game => edited[game] ?? defaultStage(game, 'full', settings))
+  const games = onlyZap ? zapIds : [...mainGames.filter(id => id !== 'zap-n') as Game[], ...defaults.games]
+  const [edited, setEdited] = useState<Partial<Record<Game, Stage>>>({})
+  const stages = games.map(game => edited[game] ?? defaultStage(game, 'full', settings))
   const { start, starting, error } = useStart()
-  const valid = selected.length > 0 && stages.every(stage => stageSchema.safeParse(stage).success && (stage.kind === 'quant' ? stage.seconds > 0 : stage.seconds >= 120))
+  const valid = stages.every(stage => stageSchema.safeParse(stage).success && (stage.kind === 'quant' ? stage.seconds > 0 : stage.seconds >= 120))
   const resume = useData(s => s.attempts.find(a => a.phase !== 'done' && (onlyZap ? a.title === 'Zap-N battery' : a.mode === 'full')))
   const title = onlyZap ? 'Zap-N battery' : 'Full assessment'
   return <>
-    <Link className="back-link" to={onlyZap ? '/zap-n' : '/'}><ArrowLeft size={17} /> {onlyZap ? 'Zap-N' : 'Assessments'}</Link>
+    <Link className="back-link" to={onlyZap ? '/#zap-n' : '/'}><ArrowLeft size={17} /> {onlyZap ? 'Zap-N' : 'Assessments'}</Link>
     <div className="page-heading"><h1>{title}</h1></div>
-    <section className="panel">
-      <h2>Zap-N games</h2><div className="family-fields">{zapIds.map(game => <label className="checkbox" key={game}>
-        <input type="checkbox" checked={selected.includes(game)} onChange={e => setSelected(e.target.checked ? [...selected, game] : selected.filter(g => g !== game))} />{gameInfo[game].title}</label>)}</div>
-      {!onlyZap && <label className="checkbox bonus-check"><input type="checkbox" checked={includeBonus} onChange={e => setBonus(e.target.checked)} /> Add Classic 80-in-8 after the six sections</label>}
-    </section>
     <section className="panel">
       <h2>Run order</h2>
       <ol className="stage-list">{stages.map((stage, index) => <li key={stage.game}><details><summary><span>{index + 1} · {gameInfo[stage.game].title}</span>
@@ -214,7 +195,6 @@ export function FullSetup() {
       <div className="actions"><button className="primary" disabled={!valid || starting} onClick={() => start({ mode: onlyZap ? 'timed' : 'full', title, stages })}>
         Start {onlyZap ? 'battery' : 'full mock'} <ArrowRight size={17} /></button>
         {resume && <Link className="secondary" to={'/play/' + resume.id}>Resume saved run</Link>}</div>
-      {!selected.length && <p className="field-note">Select at least one Zap-N game.</p>}
       {error && <p role="alert">{error}</p>}{starting && <p role="status">Starting…</p>}
     </section>
   </>

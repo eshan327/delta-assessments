@@ -108,15 +108,16 @@ async function playArcade(page: Page, c: Challenge, index: number) {
   }
 }
 
-test('portal order, independent arcade routes, reload and browser back', async ({ page }, info) => {
+test('homepage groups all Zap-N games and opens each rules page', async ({ page }, info) => {
   const errors: string[] = []
   page.on('pageerror', e => errors.push(e.message))
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
   await page.goto('./')
   await expect(page).toHaveTitle('Delta Assessments')
-  await expect(page.locator('.game-row strong')).toHaveText(['Beat The Odds', 'NumberLogic', 'Likelihood-list', 'Intervals', 'Orderbooks', 'Zap-N', 'Classic 80-in-8'])
-  await expect(page.getByRole('heading', { name: 'Bonus' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Classic 80-in-8', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Assessments', exact: true }).locator('.game-row strong'))
+    .toHaveText(['Beat The Odds', 'NumberLogic', 'Likelihood-list', 'Intervals', 'Orderbooks', 'Classic 80-in-8'])
+  await expect(page.getByRole('region', { name: 'Zap-N', exact: true }).locator('.game-row strong')).toHaveText(zapIds.map(id => zapName[id]))
+  await expect(page.getByRole('link', { name: /^(About|History)$/ })).toHaveCount(0)
   await page.screenshot({ path: info.outputPath('portal.png'), fullPage: true })
   for (const slug of ['beat-the-odds', 'numberlogic', 'likelihood-list', 'intervals', 'orderbooks', 'classic-80-in-8']) {
     await page.locator('a[href="#/game/' + slug + '"]').click()
@@ -126,15 +127,22 @@ test('portal order, independent arcade routes, reload and browser back', async (
     await expect(page.getByRole('button', { name: 'Start tutorial' })).toBeVisible()
     await page.getByRole('link', { name: 'Assessments', exact: true }).click()
   }
-  await page.getByRole('link', { name: 'Zap-N', exact: true }).click()
-  await expect(page.locator('.game-row strong')).toHaveText(zapIds.map(id => zapName[id]))
   for (const id of zapIds) {
     await page.locator('a[href="#/game/' + id + '"]').click()
     await expect(page.getByRole('heading', { level: 1, name: zapName[id] })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
-    await page.goBack()
-    await expect(page.getByRole('heading', { level: 1, name: 'Zap-N' })).toBeVisible()
+    await page.getByRole('link', { name: 'Zap-N', exact: true }).click()
+    await expect(page).toHaveURL(/#\/#zap-n$/)
+    await expect(page.getByRole('region', { name: 'Zap-N', exact: true })).toBeVisible()
   }
+  await page.goto('./#/zap-n')
+  await expect(page).toHaveURL(/#\/#zap-n$/)
+  await page.getByRole('link', { name: 'Full mock', exact: true }).click()
+  await expect(page.locator('.stage-list summary > span')).toHaveText([
+    '1 · Beat The Odds', '2 · NumberLogic', '3 · Likelihood-list', '4 · Intervals', '5 · Orderbooks',
+    ...defaults.games.map((id, i) => (i + 6) + ' · ' + zapName[id]),
+  ])
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
   await page.goto('./#/game/orderbooks')
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'Orderbooks' })).toBeVisible()
@@ -271,10 +279,12 @@ test('full mock resumes an active board, persists results, and replays the share
   }
   await result(page, 'Full assessment')
   await expect(page.locator('.result-stage')).toHaveCount(c.stages.length)
-  await page.getByRole('link', { name: 'History', exact: true }).click()
-  await expect(page.getByText('Full assessment', { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Review', exact: true }).click()
+  const resultsUrl = page.url()
+  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
+  await page.goto(resultsUrl)
   await result(page, 'Full assessment')
+  await expect(page.locator('.result-stage')).toHaveCount(c.stages.length)
+  await expect(page.getByRole('link', { name: 'History', exact: true })).toHaveCount(0)
   await start(page, c)
   await expect(page.getByRole('region', { name: 'Question' }).getByRole('heading')).toHaveText(initial ?? '')
 })
@@ -284,7 +294,12 @@ test.describe('mobile and reduced motion', () => {
 
   test('opens the mobile index and rules without horizontal overflow', async ({ page }, info) => {
     await page.goto('./')
-    await expect(page.locator('.game-row')).toHaveCount(7)
+    await expect(page.locator('.game-row')).toHaveCount(15)
+    await page.getByRole('link', { name: 'Shapeshift', exact: true }).tap()
+    await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'Zap-N', exact: true }).tap()
+    await expect(page.getByRole('heading', { name: 'Zap-N', exact: true })).toBeInViewport()
+    await expect(page.getByRole('region', { name: 'Zap-N', exact: true })).toBeFocused()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
     await page.screenshot({ path: info.outputPath('mobile-portal.png'), fullPage: true })
     await page.getByRole('link', { name: 'Intervals', exact: true }).tap()
@@ -319,24 +334,29 @@ test.describe('mobile and reduced motion', () => {
   })
 })
 
-test('settings persist, backup imports are validated, and history can be cleared', async ({ page }) => {
+test('settings persist and local data controls validate and clear saved attempts', async ({ page }) => {
   await start(page, create([quant('intervals', 1)], 'settings-e2e'))
   await page.getByRole('button', { name: 'Skip', exact: true }).click()
   await result(page)
+  const resultsUrl = page.url()
   await page.getByRole('link', { name: 'Assessments', exact: true }).click()
-  await page.getByRole('navigation', { name: 'Utilities' }).getByRole('link', { name: 'Settings', exact: true }).click()
+  await page.getByRole('link', { name: 'Settings', exact: true }).click()
+  await expect(page.getByRole('combobox')).toHaveCount(1)
+  await expect(page.getByRole('checkbox')).toHaveCount(2)
   await page.getByRole('combobox', { name: 'Theme', exact: true }).selectOption('dark')
   await expect(page.getByRole('status')).toHaveText('Preferences saved.')
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Theme', exact: true })).toHaveValue('dark')
+  await expect(page.getByRole('button', { name: 'Export data' })).toBeHidden()
+  await page.getByText('Local data', { exact: true }).click()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export data' }).click()
   expect((await download).suggestedFilename()).toBe('delta-assessments-backup.json')
   await page.locator('input[type="file"]').setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
   await expect(page.getByText('This file does not contain valid Delta Assessments data.')).toBeVisible()
-  await page.getByRole('button', { name: 'Clear history' }).click()
   await page.getByRole('button', { name: 'Clear saved attempts' }).click()
-  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
-  await page.getByRole('navigation', { name: 'Utilities' }).getByRole('link', { name: 'History', exact: true }).click()
-  await expect(page.getByText('No saved runs yet.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Clear attempts', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('Saved attempts cleared.')
+  await page.goto(resultsUrl)
+  await expect(page.getByRole('heading', { name: 'Results unavailable' })).toBeVisible()
 })
