@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, CheckCircle2, Clipboard, Pause, Play, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { catalog } from '../engine/catalog.ts'
 import { sum } from '../engine/core.ts'
 import { configFor, elapsed, now, plannedQuestions, reduceAttempt, shareQuery } from '../engine/session.ts'
@@ -13,6 +13,7 @@ import { gameInfo, timeLabel } from './registry.ts'
 import { useStart } from './Setup.tsx'
 import VisualBoard from './Visual.tsx'
 import ZapPlay from './ZapPlay.tsx'
+import MathText from './MathText.tsx'
 
 const display = (n: number) => new Intl.NumberFormat('en', { maximumFractionDigits: 3 }).format(n)
 let audio: AudioContext | undefined
@@ -46,7 +47,8 @@ function useRun(id: string) {
           (next.zap?.entries.length ?? 0) > (current.zap?.entries.length ?? 0) ? next.zap?.entries.at(-1) : undefined
         if (answer) playSound(answer.state === 'correct')
       }
-      void saveAttempt(next)
+      setTime(at)
+      return saveAttempt(next)
     }
     setTime(at)
   }, [id])
@@ -69,6 +71,7 @@ function ScoreCard({ label, value }: { label: string; value: string | number }) 
 
 export function RunPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const { run, time, act, zapAct } = useRun(id)
   const [exit, setExit] = useState(false)
   const stageIndex = run?.stageIndex
@@ -92,7 +95,7 @@ export function RunPage() {
   const q = stage.kind === 'quant' ? plannedQuestions(run, run.stageIndex)[run.index] : undefined
   const round = stage.kind === 'zap' && run.zap ? roundAt(configFor(run, run.stageIndex, stage), run.zap) : undefined
   const answer = run.mode === 'practice' ? run.answers.find(a => a.index === run.index) : undefined
-  return <div className="run">
+  return <div className={stage.kind === 'zap' ? 'run run-zap' : 'run'}>
     <header className="run-header">
       <div className="run-title">
         <h1>{info.title}</h1>
@@ -112,8 +115,14 @@ export function RunPage() {
       </div>
       <div className="run-meter"><i style={{ width: Math.max(0, Math.min(1, progress)) * 100 + '%' }} /></div>
     </header>
-    {exit && <div className="notice" role="status">Progress saved.{run.mode !== 'practice' && ' The timer keeps running.'}
-      <div className="actions"><button className="secondary" onClick={() => setExit(false)}>Stay</button><Link className="primary" to="/">Exit to assessments</Link></div></div>}
+    {exit && <div className="notice" role="status">
+      {run.mode === 'practice' ? 'You can resume this practice later.' : 'You can resume this run while the timer keeps going.'}
+      <div className="actions"><button className="secondary" onClick={() => setExit(false)}>Stay</button><Link className="primary" to="/" onClick={async event => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        event.preventDefault()
+        await (run.mode === 'practice' && run.pausedAt === null ? act({ type: 'pause' }) : saveAttempt(run))
+        void navigate('/')
+      }}>Exit to assessments</Link></div></div>}
     {run.pausedAt !== null ? <div className="panel"><h2>Practice paused</h2><button className="primary" onClick={() => act({ type: 'pause' })}>Resume practice</button></div> : <>
       {q && run.draft && <QuantPlay key={run.stageIndex + '/' + run.index} q={q} draft={run.draft} answer={answer} practice={run.mode === 'practice'} act={act} />}
       {round && run.zap && <ZapPlay round={round} state={run.zap} elapsed={activeTime} practice={run.mode === 'practice'} act={zapAct} />}
@@ -166,7 +175,7 @@ function StageReview({ run, result, index }: { run: Attempt; result: StageResult
         if (!q) return null
         const label = catalog[result.game].find(f => f.id === q.family)?.label ?? q.family
         return <details key={answer.index}><summary><span>{answer.index + 1}. {label}</span><small className={'state-' + answer.state}>{answer.state} · {display(answer.points)}</small></summary>
-          <div className="review-body"><p>{q.prompt}</p>{q.visual && <VisualBoard visual={q.visual} />}<Solution q={q} answer={answer} /></div>
+          <div className="review-body"><p><MathText value={q.prompt} /></p>{q.visual && <VisualBoard visual={q.visual} />}<Solution q={q} answer={answer} /></div>
         </details>
       })}</div>
     </>}
@@ -179,8 +188,9 @@ function StageReview({ run, result, index }: { run: Attempt; result: StageResult
     {result.kind === 'zap' && <details className="round-review"><summary>Round details · {result.entries.length}</summary>
       <div className="table-scroll"><table><thead><tr><th>Round</th><th>Outcome</th><th>Details</th></tr></thead>
         <tbody>{result.entries.map(e => <tr key={e.round}><td>{e.round + 1}</td><td>{e.state}</td><td>
-          {[e.note, e.earned !== undefined ? 'Score ' + e.earned : null, e.moves !== undefined ? e.moves + ' moves' + (e.optimal ? ' · optimal ' + e.optimal : '') : null,
-            e.latency !== undefined ? Math.round(e.latency) + ' ms' : null].filter(Boolean).join(' · ') || '—'}
+          <MathText value={[e.note, e.earned !== undefined ? 'Score ' + e.earned : null,
+            e.moves !== undefined ? e.moves + ' moves' + (e.optimal ? ' · optimal ' + e.optimal : '') : null,
+            e.latency !== undefined ? Math.round(e.latency) + ' ms' : null].filter(Boolean).join(' · ') || '—'} />
         </td></tr>)}</tbody></table></div>
     </details>}
   </section>
@@ -197,16 +207,17 @@ export function ResultsPage() {
   const [copied, setCopied] = useState<boolean | null>(null)
   if (!run) return <section className="panel"><h1>Results unavailable</h1><Link to="/">Assessments</Link></section>
   if (run.phase !== 'done') return <Navigate to={'/play/' + run.id} replace />
+  const single = run.mode !== 'full' && run.stages.length === 1
   const link = new URL(import.meta.env.BASE_URL, window.location.origin)
   link.hash = '/challenge?' + shareQuery(run)
   return <>
     <Link className="back-link" to="/"><ArrowLeft size={17} /> Assessments</Link>
     <div className="page-heading"><h1>{run.title} complete</h1>
-      <p>{run.mode === 'full' ? 'Full mock' : run.mode === 'timed' ? 'Timed run' : 'Practice'} · {new Date(run.updatedAt).toLocaleString()}</p>
-      <div className="actions"><button className="primary" disabled={starting} onClick={() => start({ mode: run.mode, title: run.title, stages: run.stages })}>
+      <p>{run.mode === 'full' ? 'Saved assessment' : run.mode === 'timed' ? 'Timed run' : 'Practice'} · {new Date(run.updatedAt).toLocaleString()}</p>
+      {single && <div className="actions"><button className="primary" disabled={starting} onClick={() => start({ mode: run.mode, title: run.title, stages: run.stages })}>
         <RotateCcw size={17} /> Retake with new seed</button>
         <button className="secondary" onClick={async () => setCopied(await copyLink(String(link)))}><Clipboard size={17} /> Copy challenge link</button>
-      </div>
+      </div>}
       {copied === true && <p role="status">Challenge link copied.</p>}
       {copied === false && <label className="copy-fallback">Challenge link<input readOnly value={String(link)} onFocus={e => e.target.select()} /></label>}
       {error && <p role="alert">{error}</p>}

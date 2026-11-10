@@ -92,7 +92,7 @@ export const likelihood = [
     const aa = moments(a, a), bb = moments(b, b), cc = moments(c, c), ab = moments(a, b), ac = moments(a, c), bc = moments(b, c)
     const alt = candidates.map(([p, q]) => aa + p * p * bb + q * q * cc - 2 * p * ab - 2 * q * ac + 2 * p * q * bc)
     const scale = Math.max(...losses)
-    return ranking(rng, 'Rank the formulas by best fit to A using the smallest sum of squared errors over ' + ['the entire series', 'the first half of the series', 'the second half of the series'][v] + '.',
+    return ranking(rng, 'Use the chart to rank the formulas by how closely they match A. Compare the sum of squared errors over ' + ['the entire series', 'the first half of the series', 'the second half of the series'][v] + '.',
       plot('Time', 'Value', [a, b, c].map((data, i) => ({ label: letters[i], points: data.map((x, j) => [j + 1, x]) }))),
       candidates.map(([p, q]) => 'A = ' + p + 'B ' + (q >= 0 ? '+ ' : '− ') + Math.abs(q) + 'C'),
       losses.map(x => 1 - x / scale), alt.map(x => 1 - x / scale),

@@ -1,6 +1,8 @@
+import MathText from './MathText.tsx'
 import type { Visual } from '../engine/questions.ts'
 
-const colors = ['#146d7c', '#a34b26', '#6350a7', '#38663b', '#986418']
+const colors = ['--chart-teal', '--chart-rust', '--chart-violet', '--chart-green', '--chart-ochre'].map(color => 'var(' + color + ')')
+const linePatterns = [undefined, '7 4', '2 4']
 const pips = [
   [[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]],
   [[0, 0], [2, 0], [0, 2], [2, 2]], [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]],
@@ -16,11 +18,13 @@ function Die({ value }: { value: number }) {
 
 function Plot({ visual }: { visual: Extract<Visual, { type: 'plot' }> }) {
   const all = visual.series.flatMap(series => series.points)
-  const minX = Math.min(...all.map(p => p[0])), maxX = Math.max(...all.map(p => p[0]))
-  const minY = Math.min(...all.map(p => p[1])), maxY = Math.max(...all.map(p => p[1]))
+  let minX = Math.min(...all.map(p => p[0])), maxX = Math.max(...all.map(p => p[0]))
+  let minY = Math.min(...all.map(p => p[1])), maxY = Math.max(...all.map(p => p[1]))
+  if (minX === maxX) { minX--; maxX++ }
+  if (minY === maxY) { minY--; maxY++ }
   const left = 58, right = 622, top = 24, bottom = 273
-  const X = (x: number) => minX === maxX ? (left + right) / 2 : left + (x - minX) / (maxX - minX) * (right - left)
-  const Y = (y: number) => minY === maxY ? (top + bottom) / 2 : bottom - (y - minY) / (maxY - minY) * (bottom - top)
+  const X = (x: number) => left + (x - minX) / (maxX - minX) * (right - left)
+  const Y = (y: number) => bottom - (y - minY) / (maxY - minY) * (bottom - top)
   const label = (n: number) => String(Number(n.toPrecision(5)))
   return <>
     <div className="chart-scroll"><svg className="plot" viewBox="0 0 650 325" role="img" aria-label={visual.y + ' by ' + visual.x}>
@@ -38,11 +42,11 @@ function Plot({ visual }: { visual: Extract<Visual, { type: 'plot' }> }) {
           <title>{label + ' · ' + x + ', ' + y}</title>
         </circle>)}</g> :
         <polyline key={label} points={points.map(([x, y]) => X(x) + ',' + Y(y)).join(' ')} fill="none" stroke={colors[i % colors.length]}
-          strokeDasharray={i % 2 ? '7 4' : undefined} strokeWidth="2.5" />)}
+          strokeDasharray={linePatterns[i % linePatterns.length]} strokeWidth="2.5" />)}
       <text x={(left + right) / 2} y="314" textAnchor="middle">{visual.x}</text>
       <text x="13" y="146" transform="rotate(-90 13 146)" textAnchor="middle">{visual.y}</text>
     </svg></div>
-    <div className="chart-legend">{visual.series.map((s, i) => <span key={s.label}><i style={{ background: colors[i % colors.length] }} />{s.label}</span>)}</div>
+    <div className="chart-legend">{visual.series.map((s, i) => <span key={s.label}><i className={s.scatter ? undefined : 'legend-line'} style={{ background: colors[i % colors.length] }} />{s.label}</span>)}</div>
     <details className="chart-data"><summary>View plot data</summary>
       {visual.series.map(s => <p key={s.label}><strong>{s.label}</strong> {s.points.map(([x, y]) => '(' + label(x) + ', ' + label(y) + ')').join(', ')}</p>)}
     </details>
@@ -100,7 +104,7 @@ export default function VisualBoard({ visual }: { visual: Visual }) {
       <thead><tr>{visual.headers.map((x, i) => <th key={i} scope="col">{x}</th>)}</tr></thead>
       <tbody>{visual.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}
         className={visual.highlight?.[0] === i && visual.highlight[1] === j ? 'highlight' : undefined}>
-        {visual.highlight?.[0] === i && visual.highlight[1] === j && <span className="sr-only">Highlighted value </span>}{cell}
+        {visual.highlight?.[0] === i && visual.highlight[1] === j && <span className="sr-only">Highlighted value </span>}<MathText value={cell} />
       </td>)}</tr>)}</tbody>
     </table></div>}
     {visual.type === 'plot' && <Plot visual={visual} />}
@@ -110,7 +114,7 @@ export default function VisualBoard({ visual }: { visual: Visual }) {
       {visual.cells.map((cell, i) => <div key={i} className="visual-cell" style={visual.offsets ? { transform: 'translate(' + visual.offsets[i][0] / 2 + 'px,' + visual.offsets[i][1] / 2 + 'px)' } : undefined}>
         {visual.style === 'dice' ? <Die value={Number(cell)} /> :
           visual.style === 'coins' ? <span className="coin" aria-label={cell === 'H' ? 'Heads' : 'Tails'}>{cell}</span> :
-            visual.style === 'shapes' ? <span className={'shape shape-' + cell} role="img" aria-label={String(cell)} /> : cell}
+            visual.style === 'shapes' ? <span className={'shape shape-' + cell} role="img" aria-label={String(cell)} /> : <MathText value={cell} />}
       </div>)}
     </div>}
   </div>

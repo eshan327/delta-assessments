@@ -100,8 +100,9 @@ export const intervals = [
     const sorted = [...data].sort((a, b) => a - b)
     const largest = sorted[data.length - k], smallest = sorted[m - 1]
     const value = [largest - smallest, largest + smallest, largest][v]
-    return interval(['Find the difference between the ' + k + 'th-largest and the ' + m + 'th-smallest number.',
-      'Find the sum of the ' + k + 'th-largest and the ' + m + 'th-smallest number.', 'Find the ' + k + 'th-largest number.'][v] + ' Count duplicates as separate entries.',
+    const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th', '6th']
+    return interval(['Find the difference between the ' + ordinals[k] + ' largest and the ' + ordinals[m] + ' smallest number.',
+      'Find the sum of the ' + ordinals[k] + ' largest and the ' + ordinals[m] + ' smallest number.', 'Find the ' + ordinals[k] + ' largest number.'][v] + ' Count duplicates as separate entries.',
     { type: 'grid', cells: data, columns: 5, style: 'numbers' }, [v, sorted, k, v === 2 ? 0 : m], value, () => {
       const find = (index: number) => range(Math.max(...data) + 1).find(n => data.filter(x => x <= n).length > index)!
       const a = find(data.length - k), b = find(m - 1)

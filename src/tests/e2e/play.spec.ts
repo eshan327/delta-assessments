@@ -79,8 +79,9 @@ async function playArcade(page: Page, c: Challenge, index: number) {
       expect(steps).toHaveLength(3)
       for (const { a, b, op } of steps!) {
         await page.locator('[data-tile="' + a + '"]').click()
-        await page.locator('[data-tile="' + b + '"]').click()
         await page.getByRole('button', { name: 'Operator ' + op, exact: true }).click()
+        await expect(page.getByRole('button', { name: 'Operator ' + op, exact: true })).toHaveAttribute('aria-pressed', 'true')
+        await page.locator('[data-tile="' + b + '"]').click()
       }
       await page.getByRole('button', { name: 'Submit', exact: true }).click()
       break
@@ -113,11 +114,12 @@ test('homepage groups all Zap-N games and opens each rules page', async ({ page 
   page.on('pageerror', e => errors.push(e.message))
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
   await page.goto('./')
-  await expect(page).toHaveTitle('Delta Assessments')
+  await expect(page).toHaveTitle('Optiver Assessments')
+  await expect(page.getByText('Independent practice', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Assessments', exact: true }).locator('.game-row strong'))
     .toHaveText(['Beat The Odds', 'NumberLogic', 'Likelihood-list', 'Intervals', 'Orderbooks', 'Classic 80-in-8'])
   await expect(page.getByRole('region', { name: 'Zap-N', exact: true }).locator('.game-row strong')).toHaveText(zapIds.map(id => zapName[id]))
-  await expect(page.getByRole('link', { name: /^(About|History)$/ })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /^(About|History|Full mock|Settings)$/ })).toHaveCount(0)
   await page.screenshot({ path: info.outputPath('portal.png'), fullPage: true })
   for (const slug of ['beat-the-odds', 'numberlogic', 'likelihood-list', 'intervals', 'orderbooks', 'classic-80-in-8']) {
     await page.locator('a[href="#/game/' + slug + '"]').click()
@@ -137,12 +139,10 @@ test('homepage groups all Zap-N games and opens each rules page', async ({ page 
   }
   await page.goto('./#/zap-n')
   await expect(page).toHaveURL(/#\/#zap-n$/)
-  await page.getByRole('link', { name: 'Full mock', exact: true }).click()
-  await expect(page.locator('.stage-list summary > span')).toHaveText([
-    '1 · Beat The Odds', '2 · NumberLogic', '3 · Likelihood-list', '4 · Intervals', '5 · Orderbooks',
-    ...defaults.games.map((id, i) => (i + 6) + ' · ' + zapName[id]),
-  ])
-  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  for (const removed of ['full', 'settings']) {
+    await page.goto('./#/' + removed)
+    await expect(page.getByRole('heading', { name: 'Optiver Assessments' })).toBeVisible()
+  }
   await page.goto('./#/game/orderbooks')
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'Orderbooks' })).toBeVisible()
@@ -161,7 +161,10 @@ for (const game of ['beat-the-odds', 'numberlogic', 'classic-80-in-8'] as const)
     const c = create([quant(game, 3)], game + '-e2e')
     const questions = plannedQuestions(c, 0) as Extract<Question, { kind: 'choice' }>[]
     await start(page, c)
-    await clickChoice(page, questions[0], true)
+    const correct = questions[0].options.findIndex(option => option.key === questions[0].truth)
+    await page.keyboard.press(String(correct + 1))
+    await expect(page.getByRole('group', { name: 'Answer choices' }).getByRole('button').nth(correct)).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Enter')
     await expect(page.locator('.solution')).toHaveCount(0)
     await clickChoice(page, questions[1], false)
     await page.getByRole('button', { name: 'Skip', exact: true }).click()
@@ -172,6 +175,21 @@ for (const game of ['beat-the-odds', 'numberlogic', 'classic-80-in-8'] as const)
     await expect(page.locator('.review-list details[open] .solution')).toContainText('Correct · 1 point')
   })
 }
+
+test('stacked fractions remain readable and grade exactly', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const c = create([{ ...quant('classic-80-in-8', 1), families: ['frac-sum'] }], 'stacked-fractions', 'practice')
+  const q = plannedQuestions(c, 0)[0] as Extract<Question, { kind: 'choice' }>
+  await start(page, c)
+  const fraction = page.getByRole('heading', { level: 2 }).getByRole('math').first()
+  await expect(fraction).toBeVisible()
+  await expect(fraction).toHaveCSS('display', 'inline-grid')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: info.outputPath('math-notation.png') })
+  await clickChoice(page, q, true)
+  await expect(page.locator('.solution')).toContainText('Correct · 1 point')
+  await expect(page.locator('.solution .math-fraction').first()).toBeVisible()
+})
 
 test('Intervals draws two boards, accepts steppers and exact bounds, and grades timeout once', async ({ page }, info) => {
   await page.clock.install()
@@ -206,7 +224,7 @@ test('Likelihood-list has equivalent drag and arrow controls and grades exact or
   await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
   await page.mouse.down()
   await page.mouse.move(target.x + 12, target.y + target.height / 2, { steps: 10 })
-  await page.mouse.move(target.x + 14, target.y + target.height / 2)
+  await expect(rows.last()).toHaveAttribute('data-drag', 'target')
   await page.mouse.up()
   await expect(rows.locator(':scope > span')).toHaveText([original[1], original[2], original[0]])
   for (let index = 0; index < 3; index++) {
@@ -257,36 +275,39 @@ for (const game of zapIds) test(zapName[game] + ' plays to a real result', async
   await expect(page.locator('.score-card').first()).toHaveText(game === 'balloon' ? '1Cashed out' : '1Correct / solved')
 })
 
-test('full mock resumes an active board, persists results, and replays the shared seed', async ({ page }) => {
+test('practice exit pauses the clock, saves the active board, and replays its seed', async ({ page }) => {
   await page.clock.install()
-  const c = create([
-    ...(['beat-the-odds', 'numberlogic', 'likelihood-list', 'intervals', 'orderbooks'] as const).map(game => quant(game, 1)),
-    ...defaults.games.map(game => arcade(game)),
-  ], 'full-e2e', 'full', 'Full assessment')
+  const c = create([quant('orderbooks', 1)], 'practice-resume', 'practice')
   await start(page, c)
-  const initial = await page.getByRole('region', { name: 'Question' }).getByRole('heading').textContent()
-  for (let i = 0; i < c.stages.length; i++) {
-    if (i === 4) {
-      await page.getByRole('button', { name: /^Buy for/ }).first().click()
-      await page.clock.fastForward(3700)
-      await page.reload()
-      await expect(page.locator('.has-position')).toHaveCount(1)
-      await expect(page.getByRole('timer', { name: 'Section time remaining' })).not.toHaveText('1:20')
-    }
-    if (c.stages[i].kind === 'quant') await page.getByRole('button', { name: 'Skip', exact: true }).click()
-    else await playArcade(page, c, i)
-    if (i < c.stages.length - 1) await page.getByRole('button', { name: /^Continue to/ }).click()
-  }
-  await result(page, 'Full assessment')
-  await expect(page.locator('.result-stage')).toHaveCount(c.stages.length)
-  const resultsUrl = page.url()
-  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
-  await page.goto(resultsUrl)
-  await result(page, 'Full assessment')
-  await expect(page.locator('.result-stage')).toHaveCount(c.stages.length)
-  await expect(page.getByRole('link', { name: 'History', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: /^Buy for/ }).first().click()
+  await page.getByRole('button', { name: /^Undo buy/ }).click()
+  await expect(page.locator('.has-position')).toHaveCount(0)
+  await page.getByRole('button', { name: /^Sell for/ }).first().click()
+  await page.getByRole('button', { name: 'Exit run' }).click()
+  await page.getByRole('link', { name: 'Exit to assessments' }).click()
+  await expect(page.getByRole('heading', { name: 'Optiver Assessments' })).toBeVisible()
+  await page.clock.fastForward(100_000)
+  await page.reload()
+  await page.getByRole('link', { name: 'Resume run' }).click()
+  await expect(page.getByRole('heading', { name: 'Practice paused' })).toBeVisible()
+  await page.getByRole('button', { name: 'Resume practice' }).last().click()
+  const quotes = await page.locator('.quote-buttons').allTextContents()
+  await expect(page.locator('.has-position')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Skip', exact: true }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await result(page)
+  await page.reload()
+  await result(page)
   await start(page, c)
-  await expect(page.getByRole('region', { name: 'Question' }).getByRole('heading')).toHaveText(initial ?? '')
+  await page.getByRole('button', { name: /^Sell for/ }).first().click()
+  await expect(page.locator('.quote-buttons')).toHaveText(quotes)
+})
+
+test('old full-mock challenge links cannot start a new run', async ({ page }) => {
+  const old = create([quant('numberlogic', 1), arcade('balloon')], 'old-mock', 'full')
+  await page.goto('./#/challenge?' + shareQuery(old))
+  await expect(page.getByRole('heading', { name: 'Challenge unavailable' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start challenge' })).toHaveCount(0)
 })
 
 test.describe('mobile and reduced motion', () => {
@@ -332,31 +353,4 @@ test.describe('mobile and reduced motion', () => {
     await page.getByRole('button', { name: 'Next', exact: true }).tap()
     await result(page)
   })
-})
-
-test('settings persist and local data controls validate and clear saved attempts', async ({ page }) => {
-  await start(page, create([quant('intervals', 1)], 'settings-e2e'))
-  await page.getByRole('button', { name: 'Skip', exact: true }).click()
-  await result(page)
-  const resultsUrl = page.url()
-  await page.getByRole('link', { name: 'Assessments', exact: true }).click()
-  await page.getByRole('link', { name: 'Settings', exact: true }).click()
-  await expect(page.getByRole('combobox')).toHaveCount(1)
-  await expect(page.getByRole('checkbox')).toHaveCount(2)
-  await page.getByRole('combobox', { name: 'Theme', exact: true }).selectOption('dark')
-  await expect(page.getByRole('status')).toHaveText('Preferences saved.')
-  await page.reload()
-  await expect(page.getByRole('combobox', { name: 'Theme', exact: true })).toHaveValue('dark')
-  await expect(page.getByRole('button', { name: 'Export data' })).toBeHidden()
-  await page.getByText('Local data', { exact: true }).click()
-  const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export data' }).click()
-  expect((await download).suggestedFilename()).toBe('delta-assessments-backup.json')
-  await page.locator('input[type="file"]').setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
-  await expect(page.getByText('This file does not contain valid Delta Assessments data.')).toBeVisible()
-  await page.getByRole('button', { name: 'Clear saved attempts' }).click()
-  await page.getByRole('button', { name: 'Clear attempts', exact: true }).click()
-  await expect(page.getByRole('status')).toHaveText('Saved attempts cleared.')
-  await page.goto(resultsUrl)
-  await expect(page.getByRole('heading', { name: 'Results unavailable' })).toBeVisible()
 })

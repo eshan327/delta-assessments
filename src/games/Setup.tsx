@@ -1,13 +1,13 @@
-import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { catalog } from '../engine/catalog.ts'
 import { newSeed } from '../engine/core.ts'
-import { begin, decodeChallenge, defaults, defaultStage, freshChallenge, mainGames, quantIds, stageSchema } from '../engine/session.ts'
+import { begin, decodeChallenge, defaultStage, freshChallenge, quantIds, stageSchema } from '../engine/session.ts'
 import type { Challenge, Game, Mode, Stage } from '../engine/session.ts'
 import { saveAttempt, useData } from '../engine/storage.ts'
 import { zapIds } from '../engine/zap.ts'
-import GameMark, { DeltaMark } from './GameMark.tsx'
+import GameMark, { BrandMark } from './GameMark.tsx'
 import { gameInfo, timeLabel } from './registry.ts'
 import RuleExample from './RuleExample.tsx'
 
@@ -53,13 +53,9 @@ export function Home() {
   const resume = useData(s => s.attempts.find(a => a.phase !== 'done'))
   return <div className="folio">
     <header className="folio-cover">
-      <DeltaMark />
-      <h1>Delta Assessments</h1>
-      <div className="actions">
-        <Link className="secondary index-action" to="/full">Full mock <ArrowUpRight size={18} /></Link>
-        <Link className="folio-settings" to="/settings">Settings</Link>
-        {resume && <Link className="quiet" to={'/play/' + resume.id}>Resume run</Link>}
-      </div>
+      <BrandMark />
+      <h1>Optiver Assessments</h1>
+      {resume && <div className="actions"><Link className="secondary" to={'/play/' + resume.id}>Resume run <ArrowRight size={16} /></Link></div>}
     </header>
     <div className="folio-index">
       <section aria-label="Assessments"><GameList games={quantIds} /></section>
@@ -71,13 +67,13 @@ export function Home() {
   </div>
 }
 
-function StageFields({ stage, onChange, full = false }: { stage: Stage; onChange: (s: Stage) => void; full?: boolean }) {
+function StageFields({ stage, mode, onChange }: { stage: Stage; mode: Mode; onChange: (s: Stage) => void }) {
   return <div className="stage-fields">
     <div className="form-grid">
       <label>Difficulty<select value={stage.difficulty} onChange={e => onChange({ ...stage, difficulty: Number(e.target.value) as Stage['difficulty'] })}>
-        {['Recognition', 'Short reasoning', 'Exam-like', 'Challenging', 'Expert'].map((label, i) => <option key={label} value={i + 1}>{i + 1} · {label}</option>)}
+        {['Introductory', 'Easy', 'Standard', 'Hard', 'Expert'].map((label, i) => <option key={label} value={i + 1}>{i + 1} · {label}</option>)}
       </select></label>
-      <label>{stage.kind === 'zap' ? 'Game seconds' : 'Section seconds'}<input type="number" min={stage.kind === 'zap' ? 120 : full ? 1 : 0}
+      <label>{stage.kind === 'zap' ? 'Game seconds' : 'Section seconds'}<input type="number" min={stage.kind === 'zap' ? (mode === 'practice' ? 15 : 120) : 0}
         max={stage.kind === 'zap' ? 900 : 10_800} value={stage.seconds} onChange={e => onChange({ ...stage, seconds: Number(e.target.value) })} />
       </label>
       {stage.kind === 'quant' && <>
@@ -95,7 +91,10 @@ function StageFields({ stage, onChange, full = false }: { stage: Stage; onChange
         {(['correct', 'wrong', 'skip'] as const).map(key => <label key={key}>{key[0].toUpperCase() + key.slice(1)} points<input type="number" min={-100} max={100}
           value={stage.scoring[key]} onChange={e => onChange({ ...stage, scoring: { ...stage.scoring, [key]: Number(e.target.value) } })} /></label>)}
       </div>}
-      <details><summary>Choose question families</summary><p className="field-note">An empty selection includes every family.</p>
+      <details><summary>Question families</summary>
+        {stage.families.length > 0 ?
+          <button type="button" className="quiet" onClick={() => onChange({ ...stage, families: [] })}>Use all families</button> :
+          <p className="field-note">All families are included.</p>}
         <div className="family-fields">{catalog[stage.game].map(f => <label className="checkbox" key={f.id}>
           <input type="checkbox" checked={stage.families.includes(f.id)} onChange={e => onChange({ ...stage, families: e.target.checked ?
             [...stage.families, f.id] : stage.families.filter(id => id !== f.id) })} />{f.label}</label>)}</div>
@@ -109,16 +108,17 @@ export function GameIntro({ game }: { game: Game }) {
   const settings = useData(s => s.settings)
   const played = useData(s => s.attempts.some(a => a.stages.some(stage => stage.game === game)))
   const info = gameInfo[game]
-  const timed = defaultStage(game, 'timed', settings)
+  const timed = defaultStage(game, 'timed', settings), practice = defaultStage(game, 'practice', settings)
   const { start, starting, error } = useStart()
   const [custom, setCustom] = useState(false), [mode, setMode] = useState<Mode>('timed')
   const [stage, setStage] = useState(timed)
   const [query] = useSearchParams()
-  const supplied = query.has('seed') ? decodeChallenge(query) : null
+  const supplied = query.has('seed') ? playableChallenge(query, game) : null
   const launch = (mode: Mode, s: Stage, title = info.title) => start({ mode, stages: [s], title })
-  const demo: Stage = timed.kind === 'quant' ? { ...timed, count: 1, difficulty: 1, seconds: 0, itemSeconds: 0, families: [] } :
-    { ...timed, difficulty: 1, rounds: timed.game === 'grill-master' ? null : 1, seconds: timed.game === 'grill-master' ? 16 : 120 }
-  const customValid = stageSchema.safeParse(stage).success && (stage.kind !== 'zap' || stage.seconds >= 120)
+  const demo: Stage = practice.kind === 'quant' ?
+    { ...practice, count: 1, difficulty: 1, families: [practice.families[0] ?? catalog[practice.game][0].id] } :
+    { ...practice, difficulty: 1, rounds: practice.game === 'grill-master' ? null : 1, seconds: practice.game === 'grill-master' ? 16 : 120 }
+  const customValid = stageSchema.safeParse(stage).success && (stage.kind !== 'zap' || stage.seconds >= (mode === 'practice' ? 15 : 120))
   const formatPoints = (n: number) => n === 0 ? '0' : (n < 0 ? '−' : '+') + Math.abs(n)
   const scoring = info.scoring ?? (timed.kind === 'quant' && [
     formatPoints(timed.scoring.correct) + ' correct', formatPoints(timed.scoring.wrong) + ' incorrect',
@@ -150,13 +150,13 @@ export function GameIntro({ game }: { game: Game }) {
         <div className="actions">
           <button className={settings.tutorial && !played ? 'secondary index-action' : 'secondary'} disabled={starting}
             onClick={() => launch('practice', demo, info.title + ' tutorial')}>Start tutorial</button>
-          <button className="secondary" disabled={starting} onClick={() => launch('practice', defaultStage(game, 'practice', settings))}>Practice</button>
+          <button className="secondary" disabled={starting} onClick={() => launch('practice', practice)}>Practice</button>
           <button className="secondary" aria-expanded={custom} aria-controls={custom ? 'custom-setup' : undefined} onClick={() => setCustom(!custom)}>Custom</button>
         </div>
         <button className="primary" disabled={starting} onClick={() => launch('timed', timed)}>Start timed <ArrowRight size={17} /></button>
       </div>
       {supplied && <button className="secondary" disabled={starting} onClick={() => start(supplied, supplied)}>Play shared seed</button>}
-      {query.has('seed') && !supplied && <p className="field-note">This challenge link is invalid or uses a different generator version.</p>}
+      {query.has('seed') && !supplied && <p className="field-note">This challenge link is invalid or uses an unavailable run format.</p>}
       {error && <p role="alert">{error}</p>}
       {starting && <p role="status">Starting…</p>}
     </section>
@@ -167,49 +167,27 @@ export function GameIntro({ game }: { game: Game }) {
         setMode(m)
         setStage(defaultStage(game, m, settings))
       }}><option value="timed">Timed</option><option value="practice">Practice</option></select></label>
-      <StageFields stage={stage} onChange={setStage} />
+      <StageFields stage={stage} mode={mode} onChange={setStage} />
       <button className="primary" disabled={starting || !customValid} onClick={() => launch(mode, stage)}>Start custom run <ArrowRight size={17} /></button>
     </section>}
   </>
 }
 
-export function FullSetup() {
-  const settings = useData(s => s.settings)
-  const [query] = useSearchParams()
-  const onlyZap = query.get('arcade') === '1'
-  const games = onlyZap ? zapIds : [...mainGames.filter(id => id !== 'zap-n') as Game[], ...defaults.games]
-  const [edited, setEdited] = useState<Partial<Record<Game, Stage>>>({})
-  const stages = games.map(game => edited[game] ?? defaultStage(game, 'full', settings))
-  const { start, starting, error } = useStart()
-  const valid = stages.every(stage => stageSchema.safeParse(stage).success && (stage.kind === 'quant' ? stage.seconds > 0 : stage.seconds >= 120))
-  const resume = useData(s => s.attempts.find(a => a.phase !== 'done' && (onlyZap ? a.title === 'Zap-N battery' : a.mode === 'full')))
-  const title = onlyZap ? 'Zap-N battery' : 'Full assessment'
-  return <>
-    <Link className="back-link" to={onlyZap ? '/#zap-n' : '/'}><ArrowLeft size={17} /> {onlyZap ? 'Zap-N' : 'Assessments'}</Link>
-    <div className="page-heading"><h1>{title}</h1></div>
-    <section className="panel">
-      <h2>Run order</h2>
-      <ol className="stage-list">{stages.map((stage, index) => <li key={stage.game}><details><summary><span>{index + 1} · {gameInfo[stage.game].title}</span>
-        <small>{timeLabel(stage.seconds)}{stage.kind === 'quant' ? ' · ' + stage.count + ' questions' : ''}</small></summary>
-        <StageFields stage={stage} full onChange={s => setEdited({ ...edited, [s.game]: s })} /></details></li>)}</ol>
-      <div className="actions"><button className="primary" disabled={!valid || starting} onClick={() => start({ mode: onlyZap ? 'timed' : 'full', title, stages })}>
-        Start {onlyZap ? 'battery' : 'full mock'} <ArrowRight size={17} /></button>
-        {resume && <Link className="secondary" to={'/play/' + resume.id}>Resume saved run</Link>}</div>
-      {error && <p role="alert">{error}</p>}{starting && <p role="status">Starting…</p>}
-    </section>
-  </>
+function playableChallenge(query: URLSearchParams, game?: Game) {
+  const challenge = decodeChallenge(query)
+  return challenge && challenge.mode !== 'full' && challenge.stages.length === 1 && (!game || challenge.stages[0].game === game) ? challenge : null
 }
 
 export function ChallengePage() {
   const [query] = useSearchParams()
-  const challenge = decodeChallenge(query)
+  const challenge = playableChallenge(query)
   const { start, starting, error } = useStart()
   return <section className="panel challenge-sheet"><h1>{challenge?.title ?? 'Challenge unavailable'}</h1>
     {challenge ? <>
       <p className="seed">{challenge.seed}</p>
       <button className="primary" disabled={starting} onClick={() => start(challenge, challenge)}>Start challenge <ArrowRight size={17} /></button>
       {starting && <p role="status">Starting…</p>}
-    </> : <p>The link is incomplete or uses an unavailable generator version.</p>}
+    </> : <p>This link is incomplete or uses an unavailable run format.</p>}
     {error && <p role="alert">{error}</p>}
     <Link className="back-link" to="/">Assessments</Link>
   </section>

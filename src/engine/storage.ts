@@ -1,7 +1,6 @@
 import Dexie from 'dexie'
 import type { Table } from 'dexie'
 import { create } from 'zustand'
-import { z } from 'zod'
 import { attemptSchema, defaults, settingsSchema } from './session.ts'
 import type { Attempt, Settings } from './session.ts'
 
@@ -15,7 +14,6 @@ class LocalStore extends Dexie {
 }
 
 const db = new LocalStore()
-export const validImport = z.object({ version: z.literal(1), settings: settingsSchema, attempts: z.array(attemptSchema).max(2000) })
 type Data = {
   attempts: Attempt[]
   settings: Settings
@@ -92,37 +90,4 @@ export function saveAttempt(attempt: Attempt) {
       }
     })
   })
-}
-
-export function saveSettings(settings: Settings) {
-  useData.setState({ settings })
-  return persist(() => db.profile.put({ id: 'settings', settings }))
-}
-
-export function exportData() {
-  const { attempts, settings } = useData.getState()
-  return JSON.stringify({ version: 1, attempts, settings }, null, 2)
-}
-
-export async function importData(raw: string) {
-  if (raw.length > 40_000_000) throw new Error('This backup is too large to import.')
-  const parsed = validImport.safeParse(JSON.parse(raw))
-  if (!parsed.success) throw new Error('This file does not contain valid Delta Assessments data.')
-  const existing = new Map(useData.getState().attempts.map(a => [a.id, a]))
-  for (const attempt of parsed.data.attempts) {
-    const current = existing.get(attempt.id)
-    if (!current || current.revision < attempt.revision) existing.set(attempt.id, attempt)
-  }
-  const attempts = sortAttempts([...existing.values()])
-  const settings = parsed.data.settings
-  useData.setState({ attempts, settings })
-  await persist(() => db.transaction('rw', db.attempts, db.profile, async () => {
-    await db.attempts.bulkPut(attempts)
-    await db.profile.put({ id: 'settings', settings })
-  }))
-}
-
-export function clearData() {
-  useData.setState({ attempts: [] })
-  return persist(() => db.attempts.clear())
 }

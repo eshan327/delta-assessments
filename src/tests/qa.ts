@@ -111,19 +111,19 @@ for (const game of zapIds) {
   console.log(game, count + ' seeds', invalid + ' invalid')
 }
 
-try {
-  const stages = [...quantIds.filter(id => id !== 'classic-80-in-8'), ...defaults.games].map(game => defaultStage(game, 'full', defaults))
-  const initial: Challenge = { version: VERSION, seed: 'mock-quality-one', title: 'Full assessment', mode: 'full', stages }
-  const signatures = (c: Challenge) => c.stages.flatMap((_, i) => plannedQuestions(c, i).map(q => q.signature))
+for (const game of quantIds) try {
+  const stages = [defaultStage(game, 'timed', defaults)]
+  const initial: Challenge = { version: VERSION, seed: 'preset-quality-one', title: game, mode: 'timed', stages }
+  const signatures = (c: Challenge) => plannedQuestions(c, 0).map(q => q.signature)
   const first = signatures(initial)
   const second = freshChallenge({ title: initial.title, mode: initial.mode, stages }, [])
   const next = signatures(second)
   const decoded = decodeChallenge(new URLSearchParams(shareQuery(initial)))
   assert(decoded && same(first, signatures(decoded)), 'Shared seed did not replay')
-  assert(first.length === new Set(first).size && next.length === new Set(next).size, 'Duplicate inside a full mock')
-  assert(first.filter(x => !next.includes(x)).length / first.length >= 0.95, 'Fresh full mocks differ by less than 95%')
+  assert(first.length === new Set(first).size && next.length === new Set(next).size, 'Duplicate inside a run')
+  assert(first.filter(x => !next.includes(x)).length / first.length >= 0.95, 'Fresh runs differ by less than 95%')
 } catch (error) {
-  failures.push(String(error))
+  failures.push(game + ' · ' + String(error))
 }
 writeFileSync('qa-report.json', JSON.stringify({ deep, summary, smallBooks, failures, items }))
 if (failures.length) {

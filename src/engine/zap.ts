@@ -385,7 +385,7 @@ export function playZap(config: ZapConfig, previous: ZapState, time: number, act
     if (action.type === 'tile' || action.type === 'operator') {
       const selected = action.type === 'tile' ? work.selected.includes(action.id) ? work.selected.filter(id => id !== action.id) :
         tiles.some(t => t.id === action.id) ? [...work.selected, action.id].slice(-2) : work.selected : work.selected
-      const op = action.type === 'operator' ? action.op : work.op
+      const op = selected.length === 0 ? null : action.type === 'operator' ? action.op : work.op
       if (selected.length !== 2 || !op) return update({ ...work, selected, op })
       const [a, b] = selected
       if (!combineTiles(tiles, a, b, op)) return update({ ...work, selected, op: null })

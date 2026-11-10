@@ -1,8 +1,8 @@
 # Delta Assessments
 
-Delta is an independent, browser-based practice site for quantitative assessments and cognitive games. Practice provides feedback as you play. Timed sections reveal solutions when the clock or question set ends.
+Optiver Assessments is an independent, browser-based practice site for quantitative assessments and cognitive games. Practice provides feedback as you play. Timed sections reveal solutions when the clock or question set ends.
 
-The library contains Beat The Odds, NumberLogic, Likelihood-list, Intervals, Orderbooks, and the Zap-N arcade. All nine Zap-N games can be played independently or included in a full assessment. Classic 80-in-8 is a separate mental-math trainer.
+The library contains Beat The Odds, NumberLogic, Likelihood-list, Intervals, Orderbooks, and the Zap-N arcade. All nine Zap-N games can be played independently. Classic 80-in-8 is a separate mental-math trainer.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ Open the local URL with the /delta-assessments/ prefix. A production build uses 
 
 ## Play and share
 
-Start with a tutorial, choose Practice or Timed, or set a custom duration, difficulty, and question mix. Full assessment runs follow the portal order. Continue between stages when ready. Settings and runs are stored in your browser. Backups are available under Local data in Settings.
+Start with a tutorial, choose Practice or Timed, or set a custom duration, difficulty, and question mix. Runs are stored in your browser.
 
 After a run, choose **Retake with new seed** for fresh content or **Copy challenge link** to reproduce the exact question order and settings on another device. The challenge encodes the generator version.
 

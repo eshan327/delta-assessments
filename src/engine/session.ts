@@ -8,7 +8,6 @@ import { playZap, startZap, tickZap, zapFinished, zapIds } from './zap.ts'
 import type { ZapAction, ZapConfig, ZapGame } from './zap.ts'
 
 export const quantIds = ['beat-the-odds', 'numberlogic', 'likelihood-list', 'intervals', 'orderbooks', 'classic-80-in-8'] as const
-export const mainGames = presets.mainSix
 export const gameIds = [...quantIds, ...zapIds] as const
 export type Game = typeof gameIds[number]
 const finite = z.number().finite()
@@ -99,17 +98,18 @@ const defaultScores = { correct: 1, wrong: 0, skip: 0 }
 export function defaultStage(game: Game, mode: Mode, settings: Settings): Stage {
   const custom = settings.presets[game]
   if (custom?.game === game && mode !== 'practice') return custom
-  const practice = mode === 'practice', difficulty = settings.difficulty
+  const practice = mode === 'practice', difficulty = practice && settings.difficulty > 2 ? 2 : settings.difficulty
   if (zapIds.includes(game as ZapGame)) {
     const zap = game as ZapGame
-    const rounds = zap === 'grill-master' ? null : zap === 'shapeshift' ? 40 + difficulty * 20 : practice ? (zap === 'code-compare' || zap === 'the-switch' ? 12 : 5) : null
-    return { kind: 'zap', game: zap, difficulty, seconds: 120, rounds }
+    const rounds = zap === 'grill-master' ? null : practice ? (zap === 'shapeshift' || zap === 'code-compare' || zap === 'the-switch' ? 12 : 5) : zap === 'shapeshift' ? 40 + difficulty * 20 : null
+    return { kind: 'zap', game: zap, difficulty, seconds: practice && zap === 'grill-master' ? 45 : 120, rounds }
   }
   const quant = game as QuantGame
   if (quant === 'classic-80-in-8') {
     const c = presets.bonus[quant]
-    return { kind: 'quant', game: quant, difficulty, count: practice ? 10 : c.questionCount,
-      seconds: practice ? 0 : c.examSeconds, itemSeconds: 0, families: [], typed: false,
+    return { kind: 'quant', game: quant, difficulty: 1, count: practice ? 10 : c.questionCount,
+      seconds: practice ? 0 : c.examSeconds, itemSeconds: 0, typed: false,
+      families: c.families,
       scoring: { correct: c.correct, wrong: c.wrong, skip: c.skip } }
   }
   const preset = presets.sections[quant]
@@ -117,7 +117,7 @@ export function defaultStage(game: Game, mode: Mode, settings: Settings): Stage 
     kind: 'quant', game: quant, difficulty, count: practice ? 10 : preset.questionCount,
     seconds: practice ? 0 : preset.examSeconds, itemSeconds: practice ? 0 : (preset.questionSeconds ?? 0),
     scoring: quant === 'numberlogic' || quant === 'beat-the-odds' ? preset.scoring as typeof defaultScores : defaultScores,
-    families: [], typed: false,
+    families: practice && 'practiceFamilies' in preset ? preset.practiceFamilies : [], typed: false,
   }
 }
 

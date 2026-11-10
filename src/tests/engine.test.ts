@@ -112,6 +112,24 @@ describe('answer grading', () => {
 })
 
 describe('run and clock state', () => {
+  it('starts practice with simpler families and keeps the timed presets', () => {
+    for (const [game, firstFamily] of [
+      ['likelihood-list', 'basketball'], ['intervals', 'scattered-sums'], ['orderbooks', 'single-bundle'],
+    ] as const) {
+      const practice = defaultStage(game, 'practice', defaults)
+      const timed = defaultStage(game, 'timed', defaults)
+      expect(practice).toMatchObject({ difficulty: 2, seconds: 0, families: expect.arrayContaining([firstFamily]) })
+      expect(timed).toMatchObject({ difficulty: 3, families: [] })
+      expect(plannedQuestions({ ...challenge(game, 'practice'), stages: [practice] }, 0)).toHaveLength(10)
+    }
+    const practice = defaultStage('shapeshift', 'practice', defaults)
+    const timed = defaultStage('shapeshift', 'timed', defaults)
+    expect(practice).toMatchObject({ difficulty: 2, rounds: 12 })
+    expect(timed).toMatchObject({ difficulty: 3, rounds: 100 })
+    const classic = defaultStage('classic-80-in-8', 'timed', defaults)
+    expect(classic).toMatchObject({ count: 80, seconds: 480 })
+    expect(plannedQuestions({ ...challenge('classic-80-in-8'), stages: [classic] }, 0)).toHaveLength(80)
+  })
   it('autosubmits a valid interval exactly once and restores from its saved timestamp', () => {
     let a = begin(challenge('intervals'), 'interval-timer', 100_000)
     const q = plannedQuestions(a, 0)[0] as Extract<Question, { kind: 'interval' }>

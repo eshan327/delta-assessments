@@ -24,7 +24,7 @@ export const gameInfo: Record<Game, GameInfo> = {
     title: 'Likelihood-list',
     objective: 'Rank three outcomes from most likely to least likely.',
     rules: [
-      'Drag the statements into order or use the up and down arrow buttons.',
+      'Drag the grip to reorder a statement, or use the up and down arrow buttons.',
       'Select Submit to lock in the order or Skip to move on.',
       'The current order is submitted when time runs out.',
     ],
@@ -45,7 +45,7 @@ export const gameInfo: Record<Game, GameInfo> = {
     objective: 'Make a profit and finish with zero inventory.',
     rules: [
       'Each board has one opportunity. Buy or sell each lot, which may contain several items, at its listed price.',
-      'The signed counter tracks your position. Repeat a trade to change the quantity. Reset clears all positions.',
+      'The signed counter tracks your position. Repeat a trade to change the quantity, or use Undo buy or Undo sell to reverse one lot.',
       'Submit once every item balances and the trade makes a profit, or skip the board.',
     ],
     scoring: 'Any profitable trade with zero inventory earns 1 point, regardless of profit size. An incorrect trade or a skip earns 0.',
@@ -98,7 +98,7 @@ export const gameInfo: Record<Game, GameInfo> = {
     title: zapName['number-box'],
     objective: 'Reach the target using all four starting numbers.',
     rules: [
-      'Select two tiles in order and choose +, −, ×, or ÷. The result replaces those tiles.',
+      'Select two tiles in order and choose +, −, ×, or ÷. You can also choose the operator between tiles.',
       'Use each starting number once. Intermediate fractions are exact. Submit when one tile remains.',
     ],
     scoring: 'A final tile equal to the target counts as a solve.',
